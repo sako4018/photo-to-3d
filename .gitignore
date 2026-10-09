@@ -10,7 +10,7 @@ __pycache__/
 
 # generated results and model weights never go to git
 out/
-models/
+/models/
 spikes/
 *.ckpt
 *.safetensors
