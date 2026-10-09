@@ -24,6 +24,11 @@ QUALITY_PRESETS: dict[str, tuple[int, int]] = {
 }
 
 
+# tried in this order until the simplified mesh is still closed. The first one is the fastest;
+# a real teddy-bear mesh needed 3 (the default 7 pinched two surfaces together).
+SIMPLIFY_AGGRESSIVENESS = (7, 3, 1)
+
+
 @dataclass
 class PrintParams:
     height_mm: float = 50.0
@@ -97,9 +102,13 @@ def prepare_for_print(raw: trimesh.Trimesh, params: PrintParams | None = None) -
     stage("scale", started)
 
     started = time.perf_counter()
-    simplified = simplify(mesh, target_faces)
-    if is_printable(simplified):
-        mesh = place_on_bed(simplified)
+    for aggressiveness in SIMPLIFY_AGGRESSIVENESS:
+        simplified = simplify(mesh, target_faces, aggressiveness)
+        if is_printable(simplified):
+            mesh = place_on_bed(simplified)
+            if aggressiveness != SIMPLIFY_AGGRESSIVENESS[0]:
+                notes.append(f"simplification needed a gentler setting ({aggressiveness})")
+            break
     else:
         notes.append("simplification broke the mesh, kept the full-detail version")
     stage("simplify", started)

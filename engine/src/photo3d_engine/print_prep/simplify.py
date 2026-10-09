@@ -7,8 +7,12 @@ import numpy as np
 import trimesh
 
 
-def simplify(mesh: trimesh.Trimesh, target_faces: int) -> trimesh.Trimesh:
-    """Decimate to about `target_faces` triangles. Smaller meshes are returned as they are."""
+def simplify(mesh: trimesh.Trimesh, target_faces: int, aggressiveness: int = 7) -> trimesh.Trimesh:
+    """Decimate to about `target_faces` triangles. Smaller meshes are returned as they are.
+
+    A lower `aggressiveness` merges less boldly: slower to reach the target, but it avoids
+    pinching two nearby surfaces together (seen on a real teddy-bear photo).
+    """
     if target_faces < 4:
         raise ValueError("target_faces must be at least 4")
     if len(mesh.faces) <= target_faces:
@@ -18,6 +22,7 @@ def simplify(mesh: trimesh.Trimesh, target_faces: int) -> trimesh.Trimesh:
         np.asarray(mesh.vertices, dtype=np.float64),
         np.asarray(mesh.faces, dtype=np.int64),
         target_count=target_faces,
+        agg=aggressiveness,
     )
     result = trimesh.Trimesh(points, faces, process=True)
     trimesh.repair.fix_normals(result)

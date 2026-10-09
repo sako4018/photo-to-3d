@@ -303,3 +303,36 @@ def test_pipeline_respects_target_faces():
 def test_pipeline_rejects_unknown_quality(sphere):
     with pytest.raises(ValueError):
         prepare_for_print(sphere, PrintParams(quality="ultra"))
+
+
+def test_pipeline_retries_simplification_with_a_gentler_setting(sphere, monkeypatch):
+    from photo3d_engine.print_prep import pipeline
+
+    real_simplify = pipeline.simplify
+    calls = []
+
+    def flaky(mesh, target_faces, aggressiveness=7):
+        calls.append(aggressiveness)
+        if aggressiveness == 7:  # pretend the default setting pinches the mesh
+            return trimesh.Trimesh(mesh.vertices, mesh.faces[:-2], process=False)  # now open
+        return real_simplify(mesh, target_faces, aggressiveness)
+
+    monkeypatch.setattr(pipeline, "simplify", flaky)
+    result = prepare_for_print(sphere, PrintParams(up_axis="z", quality="fast", target_faces=500))
+
+    assert calls[:2] == [7, 3]
+    assert is_printable(result.mesh)
+    assert any("gentler setting (3)" in n for n in result.notes)
+
+
+def test_pipeline_keeps_the_full_mesh_if_every_simplification_breaks_it(sphere, monkeypatch):
+    from photo3d_engine.print_prep import pipeline
+
+    def always_broken(mesh, target_faces, aggressiveness=7):
+        return trimesh.Trimesh(mesh.vertices, mesh.faces[:-2], process=False)
+
+    monkeypatch.setattr(pipeline, "simplify", always_broken)
+    result = prepare_for_print(sphere, PrintParams(up_axis="z", quality="fast", target_faces=500))
+
+    assert is_printable(result.mesh)
+    assert any("kept the full-detail version" in n for n in result.notes)
