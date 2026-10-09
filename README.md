@@ -20,12 +20,26 @@ uv run --project engine photo3d install              # сваля модела T
 Снимка → STL:
 
 ```bash
-uv run --project engine photo3d make samples/chair.png --height 50 --out out/chair.stl
+uv run --project engine photo3d make samples/chair.png --height 50
 ```
 
-Опции: `--height` (мм), `--quality fast|normal|detailed`, `--device auto|cpu|mps|cuda`, `--no-remove-bg` (снимката вече е без фон), `--keep-work ПАПКА` (запазва суровия модел `raw.glb`).
+За всяка снимка се прави отделна папка в `out/`, в която стои всичко за нея:
 
-В края се печата доклад: затворен ли е, размери в мм, обем, приблизителни грамове PLA, време по етапи и пик на паметта.
+```
+out/chair/
+  original.png        снимката, копирана без промяна
+  chair_50mm.stl      готовият за печат модел
+  report.txt          доклад: затворен ли е, размери, обем, грамове PLA
+  details/            изрязаната снимка и суровият модел (за проверка)
+```
+
+- Същата снимка пак отива в същата папка (друга височина дава втори STL до първия).
+- Друга снимка със същото име получава нова папка (`chair-2`), така че нищо не се презаписва.
+- `--out ПАПКА` сменя мястото вместо `out/`. `--out файл.stl` записва само един STL, без папка.
+
+Опции: `--height` (мм), `--quality fast|normal|detailed`, `--device auto|cpu|mps|cuda`, `--no-remove-bg` (снимката вече е без фон).
+
+В края се печата същият доклад: затворен ли е, размери в мм, обем, приблизителни грамове PLA, време по етапи и пик на паметта.
 
 ## Тестове
 

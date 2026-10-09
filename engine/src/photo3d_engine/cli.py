@@ -1,4 +1,4 @@
-"""Command line: photo3d make photo.jpg --height 50 --out out/model.stl"""
+"""Command line: photo3d make photo.jpg --height 50   (results go to out/photo/)"""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ from pathlib import Path
 
 from .engines.base import Cancelled
 from .engines.registry import DEFAULT_ENGINE, engine_ids, get_engine
+from .layout import plan_outputs, save_original
 from .make import MakeResult, make_stl
 from .platform.devices import VALID_DEVICES
 from .print_prep.pipeline import QUALITY_PRESETS
@@ -21,7 +22,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     make = commands.add_parser("make", help="photo -> STL")
     make.add_argument("image", type=Path, help="JPG, PNG, WEBP or HEIC photo")
-    make.add_argument("--out", type=Path, required=True, help="STL file to write")
+    make.add_argument(
+        "--out",
+        type=Path,
+        help="folder for the results (default: out/), a folder per photo is made inside. "
+        "If it ends in .stl, only that one file is written",
+    )
     make.add_argument("--height", type=float, default=50.0, help="model height in mm (default 50)")
     make.add_argument("--quality", choices=list(QUALITY_PRESETS), default="normal")
     make.add_argument("--device", choices=list(VALID_DEVICES), default="auto")
@@ -30,7 +36,9 @@ def build_parser() -> argparse.ArgumentParser:
         "--no-remove-bg", action="store_true", help="the photo already has a cut-out background"
     )
     make.add_argument(
-        "--keep-work", type=Path, help="folder to keep the prepared input and raw.glb in"
+        "--keep-work",
+        type=Path,
+        help="only with --out file.stl: folder to keep the prepared input and raw.glb in",
     )
 
     install = commands.add_parser("install", help="download the model weights (about 2 GB)")
@@ -68,18 +76,28 @@ def run_make(args: argparse.Namespace) -> int:
         if fraction in (0.0, 1.0):
             print(f"  [{stage}] {'done' if fraction == 1.0 else 'start'}", file=sys.stderr)
 
+    if not args.image.is_file():
+        raise FileNotFoundError(f"Image not found: {args.image}")
+    outputs = plan_outputs(args.image, args.out, args.height)
+    if outputs.folder:
+        save_original(args.image, outputs.folder)
+
     result = make_stl(
         args.image,
-        args.out,
+        outputs.stl,
         height_mm=args.height,
         quality=args.quality,
         device=args.device,
         engine_id=args.engine,
         remove_bg=not args.no_remove_bg,
-        work_dir=args.keep_work,
+        work_dir=outputs.details or args.keep_work,
         progress=show,
     )
-    print(format_result(result))
+    text = format_result(result)
+    if outputs.folder:
+        outputs.report.write_text(text + "\n", encoding="utf-8")
+        print(f"Folder: {outputs.folder}")
+    print(text)
     if not result.report["watertight"]:
         print("WARNING: the STL is not watertight, a slicer may complain.", file=sys.stderr)
         return 2
