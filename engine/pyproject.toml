@@ -1,0 +1,51 @@
+[project]
+name = "photo3d-engine"
+version = "0.1.0"
+description = "Photo to print-ready STL engine"
+authors = [
+    { name = "Sarkis Demirdjian", email = "sarkdemi@gmail.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "einops>=0.8.2",
+    "fast-simplification>=0.2.0",
+    "huggingface-hub>=0.34,<1",
+    "manifold3d>=3.5.4",
+    "numpy>=2.4.6",
+    "omegaconf>=2.4.0",
+    "pillow>=12.3.0",
+    "pillow-heif>=1.8.0",
+    "psutil>=7.2.2",
+    "rembg[cpu]>=2.0.85",
+    "scikit-image>=0.26.0",
+    "scipy>=1.17.1",
+    "torch>=2.14.1",
+    "transformers>=4.40,<5",
+    "trimesh>=5.1.1",
+]
+
+[project.scripts]
+photo3d = "photo3d_engine.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.12.24,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.16.10",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["slow: runs a real AI model (needs weights, takes minutes)"]
+addopts = "-m 'not slow'"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["src/photo3d_engine/engines/triposr_vendor"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
