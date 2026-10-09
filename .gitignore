@@ -1,0 +1,16 @@
+.DS_Store
+.vscode/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# generated results and model weights never go to git
+out/
+models/
+spikes/
+*.ckpt
+*.safetensors

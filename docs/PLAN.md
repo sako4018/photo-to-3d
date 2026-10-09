@@ -1,0 +1,877 @@
+# photo-to-3d: план на проекта
+
+> Версия 3, 09.10.2026.
+> Приложението е **за ентусиасти с 3D принтери**. **Първо работи само на macOS (Apple Silicon).** Windows е отложен за след v1.0.
+> Остава **Electron**, за да се добави Windows по-късно без ново приложение.
+> Какво вече е направено: виж секция 15 (✅ = готово и измерено, ☐ = предстои) и `docs/benchmarks.md`.
+> Решенията с ⚠️ трябва да се потвърдят с тест.
+
+## Съдържание
+
+1. [Визия и обхват](#1-визия-и-обхват)
+2. [Конкуренция и с какво сме различни](#2-конкуренция-и-с-какво-сме-различни)
+3. [Хардуер: на какво трябва да върви](#3-хардуер-на-какво-трябва-да-върви)
+4. [Ключови решения](#4-ключови-решения)
+5. [Функционални изисквания](#5-функционални-изисквания)
+6. [Нефункционални изисквания](#6-нефункционални-изисквания)
+7. [Архитектура](#7-архитектура)
+8. [Технологичен стек](#8-технологичен-стек)
+9. [Pipeline: от снимка до файл за принтиране](#9-pipeline-от-снимка-до-файл-за-принтиране)
+10. [API между UI и engine](#10-api-между-ui-и-engine)
+11. [UI/UX](#11-uiux)
+12. [Mac и Windows: какво е различно](#12-mac-и-windows-какво-е-различно)
+13. [Структура на репото](#13-структура-на-репото)
+14. [Настройка на средата](#14-настройка-на-средата)
+15. [Roadmap](#15-roadmap)
+16. [Тестове, CI, пакетиране и release](#16-тестове-ci-пакетиране-и-release)
+17. [Лицензи](#17-лицензи)
+18. [Рискове](#18-рискове)
+19. [Първи стъпки](#19-първи-стъпки)
+20. [Допускания и отворени въпроси](#20-допускания-и-отворени-въпроси)
+21. [Източници](#21-източници)
+
+---
+
+## 1. Визия и обхват
+
+**В едно изречение:** Безплатно desktop приложение за macOS (Windows по-късно): **качваш снимка → получаваш STL файл, готов за принтиране.** Моделът е затворен (watertight), в правилен мащаб в милиметри, с равна основа, и се отваря директно в слайсъра.
+
+**Основният поток (най-важното в приложението):**
+```
+1. Пускаш снимка в прозореца
+2. Приложението само: маха фона → прави 3D модел → поправя го за печат → записва STL
+3. Виждаш модела върху плочата + бутон [Запази STL] / [Отвори в слайсъра]
+```
+Без задължителни настройки по пътя. Всички настройки (размер, основа, ротация) са **по желание**, след като STL-ът вече е готов.
+
+**За кого е:** За хора с FDM или resin принтер (Bambu Lab, Prusa, Creality, Elegoo, Anycubic…), които искат бързо да превърнат снимка на фигурка, играчка, резервна част или подарък в модел за принтиране. Те не искат да учат Blender, нито да плащат кредити на облачна услуга.
+
+**Двата основни въпроса за тези хора:**
+1. "Ще се принтира ли?" Тоест затворен ли е mesh-ът, има ли основа, какъв е размерът.
+2. "Колко бързо стигам до слайсъра?"
+
+Затова **качеството на геометрията и подготовката за печат са по-важни от красивата текстура.**
+
+**MVP (v0.1, първо на Mac):**
+- Една снимка → AI модел → автоматично махане на фона.
+- **Print pipeline:** ремонт до watertight, мащаб в мм, равна основа, поставяне върху плочата.
+- Viewer с **печатна плоча** (размер според принтера) и размери в мм.
+- **Доклад за принтируемост:** watertight ✔/✘, размери, обем, приблизителни грамове филамент.
+- **STL е основният резултат.** Записва се автоматично в проекта след всяко генериране. Голям бутон **"Запази STL"** и бутон **"Отвори в слайсъра"**.
+- 3MF като допълнителна опция в менюто "Експорт".
+- История на проектите.
+
+**v1.0 (само Mac):**
+- Режим "Много снимки" с Apple Object Capture (нативен, без инсталации).
+- Инсталатор `.dmg`, онбординг, мениджър на моделите.
+- Профили на принтери, overhang изглед, автоматична ориентация, опция "добави плоча отдолу" (за предмети, които стъпват на тънки върхове).
+- Бутон "Покажи в Quick Look" (само Mac).
+
+**След v1.0 (v1.x):**
+- Многоцветен 3MF за AMS / MMU (цветовете от снимката → N филамента) ⚠️.
+- **Windows версия** (CUDA или CPU), виж "След v1.0" в секция 15.
+- Hollowing + дупки за изтичане (resin).
+- Режим "Литофан" (снимка → релефна плочка, без AI, популярно сред принтиращите).
+- По-тежки модели за мощни NVIDIA карти (TRELLIS.2).
+
+**Извън обхвата:**
+- Linux и Windows в първата версия (Windows е първото нещо след v1.0).
+- Скулптиране и редактиране.
+- Text-to-3D.
+- Собствен слайсър (ползваме чуждите).
+
+---
+
+## 2. Конкуренция и с какво сме различни
+
+| Решение | Как работи | Слабости за ентусиаста |
+|---|---|---|
+| **MakerWorld MakerLab Image-to-3D** (Bambu Lab + Meshy) | Облак, браузър, експорт в STL/3MF, многоцветен 3MF за AMS | Кредити и дневни лимити, малко контрол, само онлайн, снимките отиват в облака |
+| Meshy / Tripo / Womp (уеб) | Облак, абонамент | Платено, лимити |
+| Modly, AssetFurnace (open source) | Локално, desktop/браузър | Насочени към игри и 3D artists. Без print pipeline (мащаб, основа, ремонт, слайсър). Тежки модели (24–32 GB+) |
+| Ръчно: ComfyUI + Blender + Meshmixer | Локално | Сложно, часове настройки |
+
+**Нашите предимства:**
+1. **Локално и безплатно**, без лимити и без акаунт по подразбиране.
+2. **Print-first:** всеки модел излиза затворен, в мм, с основа и с доклад за принтируемост.
+3. **Работи на обикновен хардуер** (16 GB Mac, 6–8 GB NVIDIA, дори само CPU).
+4. **Директно към твоя слайсър:** Bambu Studio, OrcaSlicer, PrusaSlicer, Cura.
+5. Open source, така че общността може да добавя модели и профили на принтери.
+
+---
+
+## 3. Хардуер: на какво трябва да върви
+
+### 3.1 Нива на поддръжка
+
+| Ниво | Система | Ускорение | Очаквано време на модел ⚠️ | Статус |
+|---|---|---|---|---|
+| ⏳ | Windows 10/11 x64 + NVIDIA (≥6 GB VRAM, RTX 20xx+) | CUDA | не е мерено | Отложено (след v1.0) |
+| **A** | macOS 13+ на Apple Silicon (M1+, ≥16 GB) | MPS (по-бърз) или CPU | **~16 с на MPS, ~21 с на CPU (измерено на M1 Pro)** | ✅ Единствената цел засега |
+| ⏳ | Windows x64 без NVIDIA, ≥16 GB RAM | CPU | не е мерено (M1 Pro е бърз процесор, на обикновен PC ще е по-бавно) | Отложено (след v1.0) |
+| — | Intel Mac, Windows on ARM, < 16 GB RAM | — | — | ❌ Не се поддържа в v1 |
+
+### 3.2 Твоят Mac (машината за разработка)
+
+| | Стойност | Значение |
+|---|---|---|
+| Чип / RAM | M1 Pro / **16 GB** | Тежките модели (TRELLIS.2, Pixal3D, Hunyuan с текстура) не стигат |
+| macOS | 26.6 | ОК |
+| Python | системен 3.9.6 | Ще ползваме `uv` + Python 3.11 |
+| Node / Swift | 24.21 / 6.3 (CLT) | ОК |
+| Xcode / Homebrew | няма / няма | Засега не са нужни |
+
+**Windows:** отложен. Когато му дойде времето, ще трябва реален PC (с NVIDIA за CUDA пътя), защото на M1 CUDA не може да се тества. Дотогава не ни трябва такъв компютър.
+
+---
+
+## 4. Ключови решения
+
+### 4.1 Desktop framework
+
+| Вариант | Плюсове | Минуси | Оценка |
+|---|---|---|---|
+| **Electron + React + TypeScript** | Еднакъв Chromium/WebGL на Windows и Mac (важно за 3D viewer-а). Един UI код. electron-builder прави `.exe` (NSIS) и `.dmg`. Modly е пример със същия стек | ~150 MB bundle | ✅ **Избран** |
+| Tauri + React | Малък bundle | Rust. WebView2 (Windows) и WebKit (Mac) рендерират различно. Размерът не е важен заради PyTorch | Алтернатива |
+| SwiftUI | Нативно на Mac | **Няма Windows**, затова отпада | ❌ |
+| Qt (PySide6) | Един език (Python) | Остарял вид, трудно пакетиране, 3D viewer по-сложен | ❌ |
+
+**Решение (09.10.2026): остава Electron.** Нативно SwiftUI би дало по-"Mac" вид, но иска пълен Xcode (над 10 GB), нов език и пренаписване на целия UI, когато добавим Windows. AI частта така или иначе е Python, затова изборът на прозорец не е тясното място.
+
+### 4.2 AI модел за "Една снимка"
+
+| Модел | Лиценз | Gating (HF акаунт) | Памет | Win/CUDA | Mac | За печат |
+|---|---|---|---|---|---|---|
+| **TripoSR** | **MIT** | **Не** | ~6 GB | ✅ официално | CPU ✅, MPS ⚠️ | Marching cubes дава затворена повърхност → добре за печат. Геометрията е по-мека |
+| **Stable Fast 3D (SF3D)** | Stability Community (безплатно под $1M годишен приход) | **Да** | ~6 GB | ✅ официално | MPS "experimental", CPU препоръчан | По-добра форма и текстура. Изисква HF акаунт от **всеки** потребител |
+| Hunyuan3D-2 / 2mini / 2.1 | Tencent Community | Не | 6–12 GB форма, 24–48 GB текстура | ✅ | неофициално | ❌ **Лицензът не важи в ЕС, UK и Южна Корея.** Ти си в България, затова отпада |
+| TRELLIS.2 | MIT + DINOv3 (gated) | Да (DINOv3) | ~24 GB VRAM, peak ~18 GB на Mac | ✅ | порт ✅ | Най-добро качество. Само за мощни карти, v1.x |
+| Pixal3D | MIT + DINOv3 | Да | ~32 GB препоръка | ✅ | порт | v1.x, ако стане по-лек |
+
+**Решение ⚠️:**
+- **TripoSR е модел по подразбиране.** Върви веднага след инсталация, без акаунт, MIT лиценз и тегла, които можем да сваляме автоматично. Работи на всички нива A/B.
+- **SF3D е опционален модел "по-добро качество"**, когато потребителят свърже Hugging Face акаунт в настройките.
+- Plugin интерфейсът позволява по-късно да се добавят TRELLIS.2 и нови модели.
+- Фаза 0 сравнява TripoSR и SF3D **по геометрия за печат**, не по текстура. Ако SF3D е много по-добър, преразглеждаме кой да е по подразбиране.
+
+### 4.3 Обработката е локална
+Локално на машината на потребителя. Облачен API (Meshy/Tripo с личен ключ на потребителя) може да се добави като опция след v1.0.
+
+### 4.4 Връзка UI ↔ engine
+HTTP (FastAPI) на `127.0.0.1` със случаен порт и token, плюс WebSocket за прогреса. Работи еднакво на Windows и Mac и се дебъгва лесно с curl и браузър.
+
+### 4.5 Пакетиране на Python
+| Вариант | Решение |
+|---|---|
+| **Инсталаторът носи `uv` (по един binary за Win и Mac). При първо пускане създава venv в папката с данни от `uv.lock`** и сваля правилния PyTorch: CUDA на Windows с NVIDIA, CPU на Windows без NVIDIA, MPS/CPU на Mac | ✅ Малък инсталатор, правилният PyTorch за всяка машина, възпроизводимо |
+| PyInstaller | ❌ Отделен 2–4 GB build за всяка комбинация CPU/CUDA, чупи се с PyTorch |
+
+**Важно:** SF3D има C++ разширения (texture baker, UV unwrapper), а TripoSR има `torchmcubes`. Обикновеният потребител **няма** Visual Studio Build Tools или Xcode. Затова **ние build-ваме wheel-ове в CI** (Windows x64, macOS arm64) и ги качваме в GitHub Releases. Ако има заместител без компилиране (напр. `PyMCubes` / `scikit-image` за marching cubes), ползваме него ⚠️.
+
+### 4.6 Ремонт на mesh-а (watertight)
+| Вариант | Лиценз | Решение |
+|---|---|---|
+| **Voxel remesh** (voxelize → marching cubes чрез scikit-image) | BSD | ✅ Основен "гарантиран" метод: резултатът винаги е затворен. Малко загладен, но за печат е идеален |
+| **trimesh** repair (нормали, дублирани върхове, малки дупки) | MIT | ✅ Първа, лека стъпка |
+| **manifold3d** (булеви операции: изрязване на основа, hollowing) | Apache-2.0 | ✅ |
+| pymeshfix (MeshFix) | GPL ⚠️ | Избягваме, ако приложението е с MIT лиценз |
+
+### 4.7 Фотограметрия ("Много снимки", v1.0 за Mac)
+- **Mac (v1.0):** Apple Object Capture (RealityKit `PhotogrammetrySession`), нативно, малък Swift helper.
+- **Windows:** няма вградено решение. По-късно COLMAP (BSD) + отделен инструмент за mesh, или нов AI multi-view модел. Отлага се след v1.0.
+
+---
+
+## 5. Функционални изисквания
+
+### F1. Една снимка → модел за печат
+1. **"Нов модел"** → drag & drop на снимка (JPG, PNG, HEIC, WEBP).
+2. Автоматично махане на фона с preview. Може да се изключи.
+3. Избор: **модел** (TripoSR / SF3D), **качество** (Бързо / Нормално / Детайлно = резолюция на marching cubes) и **принтер** (профил с размер на плочата).
+4. **"Генерирай"** → етапи с прогрес → **отказ** по всяко време.
+5. Автоматичен **print pipeline** (F2), после viewer.
+
+### F2. Подготовка за печат (автоматична, с ръчни корекции)
+| Функция | По подразбиране | Ръчно |
+|---|---|---|
+| Ремонт до watertight | Вкл. (trimesh, а ако не стигне, voxel remesh) | Сила на заглаждане |
+| Мащаб | Височина 50 мм | Височина / ширина / дълбочина в мм, заключена пропорция |
+| Равна основа | Отрязва долните 2% | Плъзгач "колко да отреже" |
+| Поставяне на плочата | Най-ниската точка на Z=0, центрирано | Ротация по X/Y/Z с 90° бутони |
+| Опростяване | До ~200k триъгълника | Целеви брой |
+| Hollowing (resin) | Изкл. | v1.x |
+
+### F3. Доклад за принтируемост (панел до viewer-а)
+- ✔/✘ **Watertight**, ✔/✘ **Manifold**, брой отделни части.
+- Размери W×D×H в мм. Предупреждение, ако не се събира на плочата на избрания принтер.
+- Обем (cm³) → **приблизителни грамове и метри филамент** (PLA 1.24 g/cm³, с избран % пълнеж) ⚠️ груба оценка.
+- Брой триъгълници, размер на файла.
+- (v1.0) Процент overhang над 45°.
+
+### F4. Viewer
+- Печатна плоча с мм решетка според профила (напр. 256×256 за Bambu A1/P1S/X1, 250×210 за Prusa MK4, 220×220 за Ender 3).
+- Orbit/zoom/pan, бутон "Центрирай", изгледи отпред/отстрани/отгоре.
+- Режими: цвят (текстура/vertex colors) · сив "филамент" · wireframe · (v1.0) **overhang heatmap** (червено над 45°).
+- Маркиране на проблемни ръбове, ако mesh-ът не е watertight.
+
+### F5. Експорт
+- **STL (binary, мм) е основният формат.** `output/model.stl` се създава автоматично след генерирането и след всяка промяна на настройките за печат. Бутонът **"Запази STL"** го копира в избрана папка (по подразбиране Downloads, с име по проекта, напр. `dino_50mm.stl`).
+- В менюто "Експорт" (по желание): 3MF (мм, име на обекта), OBJ и GLB (за Blender и други).
+- **"Отвори в слайсъра"**: открива инсталираните Bambu Studio, OrcaSlicer, PrusaSlicer и Cura (Win + Mac) и отваря STL файла в избрания.
+- (v1.x) Многоцветен 3MF за AMS/MMU ⚠️.
+
+### F6. История на проектите
+Grid с thumbnails. Отваряне, преименуване, дублиране (с други настройки за печат без ново генериране), изтриване (с потвърждение), "Покажи в папката".
+
+### F7. Настройки
+- Принтер по подразбиране (списък с профили + "Собствен" с размери).
+- Устройство: Auto / CUDA / MPS / CPU.
+- Модели: свалени, размер, лиценз, сваляне и изтриване. Hugging Face вход за SF3D (token в Keychain / Windows Credential Manager).
+- Папка за данни и модели (моделите са GB, затова потребителят може да ги премести на друг диск).
+- Език: български / английски.
+
+### F8. Първо пускане (onboarding)
+1. Проверка на системата: Apple Silicon, RAM (≥16 GB), свободно място (≥10 GB). (При Windows по-късно: и NVIDIA чрез `nvidia-smi`.)
+2. Обяснение какво ще се свали и колко е голямо (Python среда ~0.5–3 GB според CUDA/CPU, модел ~1–2 GB).
+3. Инсталиране с прогрес и възможност за повторен опит при прекъсната връзка.
+4. Избор на принтер.
+5. Тестова генерация на примерна снимка → "Всичко работи ✔".
+
+---
+
+## 6. Нефункционални изисквания
+
+| Категория | Изискване |
+|---|---|
+| Платформи | **macOS 13+ на Apple Silicon.** Windows 10/11 x64 по-късно |
+| Памет | Работи на 16 GB RAM. Engine-ът изпълнява **една задача наведнъж** и държи **един модел** в паметта |
+| Скорост | "Нормално": ~16–22 с на M1 Pro (измерено, виж `docs/benchmarks.md`). Windows още не е мерен |
+| Офлайн | След първата инсталация всичко работи без интернет |
+| Поверителност | Снимките не напускат компютъра. Без telemetry. По-късно евентуално opt-in crash reports |
+| Надеждност | Engine-ът се рестартира сам при срив. Недовършена задача → "прекъсната", с бутон "Опитай пак" |
+| Пътища | Работи с интервали и **кирилица** в пътищата (напр. `C:\Users\Иван\`). Тества се изрично |
+| Размер на инсталатора | < 250 MB. Средата и моделите се свалят при първо пускане |
+| Сигурност | Engine-ът слуша само на `127.0.0.1` със случаен порт и token. Renderer-ът е с `contextIsolation`, без `nodeIntegration` |
+| Локализация | Български + английски от самото начало (i18n), защото общността е международна |
+| Обновления | v1.0: проверка за нова версия в GitHub Releases + линк. По-късно auto-update (electron-updater) |
+
+---
+
+## 7. Архитектура
+
+### 7.1 Компоненти
+
+```
+┌─────────────────────────────── photo-to-3d (macOS .app; Windows .exe по-късно) ─────────────────────┐
+│                                                                                                      │
+│  ┌──────────────────── Electron ─────────────────────┐                                               │
+│  │ Renderer: React + TS + three.js                   │                                               │
+│  │  - екрани, viewer с печатна плоча, доклад         │                                               │
+│  │        │ window.api (preload, contextBridge)      │                                               │
+│  │        ▼                                          │                                               │
+│  │ Main (Node/TS)                                    │                                               │
+│  │  - EngineManager: uv sync, spawn, health, restart │                                               │
+│  │  - SlicerLauncher: намира и пуска слайсъри        │                                               │
+│  │  - Secrets: Keychain / Credential Manager         │                                               │
+│  └──────────────┬────────────────────────────────────┘                                               │
+│                 │ HTTP + WS 127.0.0.1:<random>  (X-Token)                                            │
+│                 ▼                                                                                    │
+│  ┌──────────────────── Python engine (FastAPI) ───────────────────────────────┐                      │
+│  │ API → JobQueue (1 worker) → Pipeline:                                      │                      │
+│  │   preprocess ─► generate (Engine plugin) ─► print_prep ─► export           │                      │
+│  │                     │                          │                           │                      │
+│  │     ┌───────────────┼──────────────┐     repair / scale / base cut /       │                      │
+│  │     ▼               ▼              ▼     place / simplify / report         │                      │
+│  │  TripoSR          SF3D         DummyEngine (тестове)                       │                      │
+│  │  (CUDA/MPS/CPU)   (CUDA/MPS/CPU)                                           │                      │
+│  │                                                                            │                      │
+│  │  v1.0: ObjectCaptureEngine ──► oc-helper (Swift, само Mac)                  │                      │
+│  └────────────────────────────────────────────────────────────────────────────┘                      │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+Данни (Electron app.getPath('userData')):
+  Windows: %APPDATA%\photo-to-3d\      macOS: ~/Library/Application Support/photo-to-3d/
+   ├─ env/       Python venv (uv)
+   ├─ models/    тегла (HF_HOME), може да се премести на друг диск
+   ├─ projects/  <id>/ input/ work/ output/ project.json thumb.png
+   └─ logs/
+```
+
+### 7.2 Поток на данните
+
+```
+снимка ─► [preprocess]  HEIC/EXIF → махане на фон (rembg) → crop+padding → 512×512 RGBA
+       ─► [generate]    TripoSR/SF3D → raw mesh (GLB)                      (прогрес %)
+       ─► [print_prep]  1. trimesh: merge vertices, нормали, малки дупки
+                        2. ако не е watertight → voxel remesh (scikit-image marching cubes)
+                        3. махане на малки "острови" (части < 1% от обема)
+                        4. ориентация: Y-up → Z-up (както в слайсърите)
+                        5. мащаб до целевата височина в мм
+                        6. изрязване на основа (manifold3d boolean) → Z=0, центриране
+                        7. опростяване до N триъгълника (fast-simplification)
+                        8. отчет: watertight, размери, обем, грамове
+       ─► [save]        output/model.stl (ГОТОВ ЗА ПЕЧАТ) + output/model.glb (с цвят, за viewer-а) + report.json
+[UI] промяна на мащаб / основа / ротация → POST /projects/{id}/print-prep → model.stl се презаписва (за секунди, без ново генериране)
+[запази] "Запази STL" → избрана папка, или "Отвори в слайсъра". 3MF/OBJ/GLB по желание от менюто
+```
+
+**Ключов принцип:** `raw mesh` се пази. Всички настройки за печат са **недеструктивни** и се прилагат наново върху него за секунди, без ново AI генериране.
+
+### 7.3 Engine plugin интерфейс
+
+```python
+class Engine(ABC):
+    id: str                 # "triposr"
+    name: str               # "TripoSR"
+    license: str            # "MIT"
+    gated: bool             # трябва ли HF акаунт
+    devices: set[str]       # {"cuda", "mps", "cpu"}
+    est_mem_gb: float
+
+    def is_installed(self) -> bool: ...
+    def install(self, progress) -> None: ...
+    def load(self, device: str) -> None: ...
+    def unload(self) -> None: ...
+    def run(self, rgba: Path, out_dir: Path, params: dict,
+            progress: Callable[[str, float], None],
+            cancelled: Callable[[], bool]) -> Path: ...   # → raw.glb
+```
+
+---
+
+## 8. Технологичен стек
+
+### Desktop (`app/`)
+| Технология | За какво |
+|---|---|
+| Electron (LTS) + electron-vite | Обвивка, dev/build |
+| React + TypeScript (strict) | UI |
+| three.js + @react-three/fiber + @react-three/drei | Viewer, плоча, overhang шейдър |
+| Zustand | Състояние |
+| Tailwind CSS | Стилове |
+| i18next | Български / английски |
+| electron-builder | NSIS `.exe` (Windows), `.dmg` (Mac) |
+| keytar или safeStorage (Electron) | HF token в системното хранилище ⚠️ избор във Фаза 2 |
+| Vitest, Playwright (`_electron`) | Тестове |
+
+### Engine (`engine/`)
+| Технология | За какво | Лиценз |
+|---|---|---|
+| Python 3.11 + uv | Среда, lock файл, PyTorch индекси за CUDA/CPU | |
+| FastAPI + uvicorn + Pydantic | API | MIT/BSD |
+| PyTorch | Моделите | BSD |
+| huggingface_hub | Тегла | Apache-2.0 |
+| rembg (BiRefNet / u2net, ONNX) | Махане на фон | MIT |
+| Pillow + pillow-heif | Снимки (вкл. iPhone HEIC) | |
+| **trimesh** | Mesh операции, STL/3MF/OBJ/GLB експорт, проверки | MIT |
+| **manifold3d** | Булеви операции (основа, hollowing) | Apache-2.0 |
+| **scikit-image** | Marching cubes за voxel remesh | BSD |
+| fast-simplification | Опростяване | MIT |
+| lib3mf (ако трябва по-богат 3MF: цветове, AMS) ⚠️ | 3MF | BSD |
+| pytest + httpx, ruff | Тестове, lint | |
+
+### Native (`native/oc-helper/`, само Mac, v1.0)
+Swift Package + RealityKit `PhotogrammetrySession`.
+
+---
+
+## 9. Pipeline: от снимка до файл за принтиране
+
+### 9.1 Съвети за снимката (показват се в UI-а)
+- Един предмет, целият в кадър, на равномерен фон.
+- Дифузна светлина, без силни сенки и отблясъци.
+- Снимка леко отгоре (~15–30°), за да се вижда формата.
+- Без прозрачни или огледални предмети.
+
+### 9.2 Качество → параметри
+| Preset | Marching cubes резолюция | Триъгълници след опростяване | Цел |
+|---|---|---|---|
+| Бързо | 128 | ~50k | Проба |
+| Нормално | 256 | ~150k | По подразбиране |
+| Детайлно | 384–512 ⚠️ (според паметта) | ~300k | Финален печат |
+
+### 9.3 Формати
+| Формат | За какво | Детайли |
+|---|---|---|
+| **STL** | **Основен резултат** | Binary, мм, без цвят. Чете се от всеки слайсър |
+| 3MF | Допълнителен | Носи единици (мм), име, по-късно цветове (за многоцветен печат в v1.x) |
+| OBJ | Blender, Meshmixer | + MTL + текстура (ZIP) |
+| GLB | Viewer, Blender, игри | С цвят/текстура |
+
+### 9.4 Многоцветен печат (v1.x) ⚠️
+1. Цветовете от текстурата/vertex colors се групират в N цвята (k-means, N = 2–8 според AMS/MMU).
+2. Всеки триъгълник получава цвят.
+3. Записваме 3MF, който слайсърът разбира като "painted" обект.
+
+Bambu/Orca и Prusa ползват **различни разширения** на 3MF за това. Трябва проучване и тест с всеки слайсър.
+
+### 9.5 Памет
+- Само един модел в паметта. При смяна: `unload()` → `gc.collect()` → `torch.cuda.empty_cache()` / `torch.mps.empty_cache()`.
+- Mac: `PYTORCH_ENABLE_MPS_FALLBACK=1`.
+- Проверка на свободната RAM/VRAM преди старт, с предупреждение и предложение за "Бързо" или CPU.
+
+---
+
+## 10. API между UI и engine
+
+База `http://127.0.0.1:<port>`, header `X-Token`.
+
+| Метод | Път | Описание |
+|---|---|---|
+| GET | `/health` | версия, устройство, GPU, свободна памет |
+| GET | `/engines` | модели: лиценз, gated, инсталиран ли е, памет |
+| POST | `/engines/{id}/install` | сваляне → `job_id` |
+| DELETE | `/engines/{id}` | изтриване на тегла |
+| GET/POST | `/projects` | списък / нов проект |
+| GET/PATCH/DELETE | `/projects/{id}` | детайли / преименуване / изтриване |
+| POST | `/projects/{id}/inputs` | снимка |
+| POST | `/projects/{id}/preview-mask` | PNG без фон за preview |
+| POST | `/jobs` | `{project_id, engine, quality, device}` → `job_id` |
+| GET | `/jobs/{id}` · POST `/jobs/{id}/cancel` | статус / отказ |
+| POST | `/projects/{id}/print-prep` | `{height_mm, base_cut_pct, rotation, target_tris, printer}` → нов mesh + доклад (бързо) |
+| GET | `/projects/{id}/report` | доклад за принтируемост |
+| POST | `/projects/{id}/export` | `{format: stl\|3mf\|obj\|glb, dest_path}` |
+| WS | `/ws` | `progress` / `done` / `error` събития |
+
+`report.json` (пример):
+```json
+{
+  "watertight": true,
+  "manifold": true,
+  "bodies": 1,
+  "size_mm": [41.2, 38.7, 50.0],
+  "fits_printer": true,
+  "volume_cm3": 31.4,
+  "filament_g_estimate": { "infill_15": 14.8, "infill_100": 38.9 },
+  "triangles": 148302,
+  "overhang_pct": 12.5
+}
+```
+
+---
+
+## 11. UI/UX
+
+### 11.1 Основни екрани
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│ photo-to-3d          Принтер: [Bambu Lab A1 ▾]           [⚙]  [BG/EN]│
+├────────────┬─────────────────────────────────────────────────────────┤
+│ + Нов модел│   ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐                    │
+│            │   │ 🦖   │ │ 🏺   │ │ 🔧   │ │ 🧸   │   (история)         │
+│ Проекти    │   │Динo  │ │Ваза  │ │Скоба │ │Мечe  │                    │
+└────────────┴─────────────────────────────────────────────────────────┘
+ 1. Начало
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ ┌─────────────┐ ┌─────────────┐   Модел:    [TripoSR ▾]  ⓘ MIT       │
+│ │  оригинал   │ │  без фон    │   Качество: ( ) Бързо (•) Нормално   │
+│ │             │ │             │             ( ) Детайлно             │
+│ └─────────────┘ └─────────────┘   [✓] Махни фона                     │
+│ 💡 Съвет: равномерна светлина, целият предмет в кадър                 │
+│                                              [   Генерирай   ]       │
+└──────────────────────────────────────────────────────────────────────┘
+ 2. Импорт
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ ✓ Подготовка  ✓ Фон  ● Генериране 63%  ○ Подготовка за печат  ○ Запис│
+│ ██████████████████░░░░░░░░░░  ~25 сек.                   [Откажи]    │
+└──────────────────────────────────────────────────────────────────────┘
+ 3. Прогрес
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ Дино    [💾 Запази STL]  [Отвори в: Bambu Studio ▾]  [Експорт ▾]     │
+│ ┌──────────────────────────────────────────┐ ПРИНТИРУЕМОСТ           │
+│ │                                          │ ✔ Затворен (watertight) │
+│ │           🦖  (модел върху плочата)       │ ✔ 1 част                │
+│ │   ┌────────────────────────────────┐     │ 41 × 39 × 50 мм ✔ събира│
+│ │   │ ░░░░ печатна плоча 256×256 ░░░░ │     │ ~15 г PLA (15% пълнеж)  │
+│ │   └────────────────────────────────┘     │ ─────────────────────── │
+│ └──────────────────────────────────────────┘ НАСТРОЙКИ ЗА ПЕЧАТ      │
+│ Изглед: (•)Цвят ( )Филамент ( )Wireframe     Височина: [ 50 ] мм     │
+│         ( )Overhang                          Основа:   ──●──── 2%    │
+│                                              Ротация:  [X↻][Y↻][Z↻]  │
+│                                              Детайл:   ───●─── 150k  │
+└──────────────────────────────────────────────────────────────────────┘
+ 4. Viewer + подготовка за печат (основният екран)
+```
+
+Плюс: **Настройки** (принтери, модели, устройство, HF акаунт, папки, език) и **Onboarding** (F8).
+
+### 11.2 Принципи
+- Drag & drop навсякъде.
+- **Промените по печата са мигновени** (без ново AI генериране).
+- Всяка грешка: какво стана + какво да направиш + "Детайли".
+- Тъмна и светла тема по системата.
+- Клавиши: `Ctrl/⌘+N` нов, `Ctrl/⌘+E` експорт, `Ctrl/⌘+P` "отвори в слайсъра", `Ctrl/⌘+,` настройки.
+
+---
+
+## 12. Mac и Windows: какво е различно
+
+> Засега работим само за Mac. Таблицата по-долу е подготовка за момента, когато добавим Windows, и не е в работния план преди v1.0.
+
+| Тема | Windows | macOS | Как го решаваме |
+|---|---|---|---|
+| GPU | CUDA (NVIDIA) или CPU | MPS или CPU | `device="auto"`: CUDA → MPS → CPU. Проверка с `nvidia-smi` |
+| PyTorch | CUDA wheel (~2.5 GB) или CPU wheel | стандартен arm64 wheel | uv extras/markers (`[tool.uv.sources]` с PyTorch индекси) ⚠️ |
+| Native wheels (torchmcubes, SF3D ext.) | Иска MSVC | Иска clang | **Build-ваме ги в CI** и ги качваме, или търсим заместители |
+| Папка с данни | `%APPDATA%\photo-to-3d` | `~/Library/Application Support/photo-to-3d` | `app.getPath('userData')` → подава се на Python |
+| Спиране на engine-а | Няма SIGTERM, а дъщерните процеси остават | SIGTERM | Windows: `taskkill /PID <pid> /T /F`, Mac: `process.kill()` + group. HTTP `/shutdown` първо |
+| Пътища | `\`, кирилица, дълги пътища (>260) | `/` | Само `pathlib` / `path.join`. Тест с потребител "Иван" |
+| Секрети | Credential Manager | Keychain | Electron `safeStorage` / keytar |
+| Слайсъри | `C:\Program Files\Bambu Studio\bambu-studio.exe` и др. | `/Applications/BambuStudio.app` и др. | Таблица с известни пътища + "Избери ръчно" |
+| Инсталатор | NSIS `.exe` | `.dmg` | electron-builder |
+| Подписване | Без подпис → SmartScreen предупреждение | Без подпис → Gatekeeper | Вж. 16.5 |
+| Фотограметрия | ❌ (по-късно) | Object Capture (v1.0) | Бутонът е скрит на Windows |
+
+**Правило:** Engine-ът е **100% крос-платформен Python**. Всичко специфично за платформата е в `engine/src/photo3d_engine/platform/` или в Electron main.
+
+---
+
+## 13. Структура на репото
+
+```
+photo-to-3d/
+├── README.md                      # на български (+ README.en.md за общността)
+├── LICENSE                        # предложение: MIT
+├── docs/
+│   ├── PLAN.md
+│   ├── decisions/                 # ADR: 001-electron.md, 002-triposr-default.md, …
+│   ├── benchmarks.md              # Фаза 0
+│   └── slicers.md                 # пътища и 3MF особености на всеки слайсър
+├── app/                           # Electron + React + TS
+│   ├── package.json
+│   ├── electron.vite.config.ts
+│   ├── electron-builder.yml       # win: nsis x64, mac: dmg arm64
+│   ├── resources/
+│   │   ├── icon.ico, icon.icns
+│   │   └── bin/{win-x64,mac-arm64}/uv[.exe]
+│   ├── src/
+│   │   ├── main/   (index.ts, engine-manager.ts, slicer-launcher.ts, secrets.ts, first-run.ts, ipc.ts)
+│   │   ├── preload/index.ts
+│   │   └── renderer/src/
+│   │       ├── App.tsx, i18n/{bg,en}.json
+│   │       ├── api/engine-client.ts
+│   │       ├── store/
+│   │       ├── pages/ (Home, Import, Progress, Workspace, Settings, Onboarding)
+│   │       └── components/ (Viewer3D, PrintBed, OverhangMaterial, PrintReport, PrintControls, DropZone)
+│   └── tests/ (unit/, e2e/)
+├── engine/                        # Python
+│   ├── pyproject.toml, uv.lock
+│   ├── src/photo3d_engine/
+│   │   ├── __main__.py            # --port --token --data-dir
+│   │   ├── server.py, jobs.py, projects.py, settings.py
+│   │   ├── platform/ (devices.py, paths.py)
+│   │   ├── preprocess/ (image_io.py, background.py, crop.py)
+│   │   ├── engines/ (base.py, registry.py, triposr.py, sf3d.py, dummy.py)
+│   │   ├── print_prep/ (repair.py, voxel_remesh.py, orient.py, scale.py, base_cut.py, simplify.py, report.py)
+│   │   ├── printers/profiles.json # размери на плочите
+│   │   └── export/ (stl.py, threemf.py, obj.py, glb.py)
+│   └── tests/ (test_api.py, test_jobs.py, test_print_prep.py, test_export.py, data/)
+├── native/oc-helper/              # Swift, само Mac (v1.0)
+├── wheels/                        # скриптове за build на native wheels в CI
+├── scripts/ (setup.sh, setup.ps1, dev.sh, dev.ps1, bench.py)
+├── samples/                       # 5–10 малки тестови снимки
+└── .github/workflows/ (ci.yml, release.yml, wheels.yml)
+```
+
+---
+
+## 14. Настройка на средата
+
+### 14.1 Mac (твоята машина)
+```bash
+# uv + Python 3.11
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# рестартирай терминала
+uv python install 3.11
+
+# проверка
+node --version && npm --version && swift --version && uv --version
+```
+
+### 14.2 Windows PC (за тестване, PowerShell)
+```powershell
+winget install --id Git.Git -e
+winget install --id OpenJS.NodeJS.LTS -e
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+uv python install 3.11
+nvidia-smi    # проверка на NVIDIA драйвера и CUDA версията
+```
+
+### 14.3 Скелет на проекта (Фаза 1–2, на Mac)
+```bash
+cd "$HOME/Desktop/Developer/personal projects/photo-to-3d"
+
+# engine
+uv init --package --name photo3d-engine --python 3.11 engine
+cd engine
+uv add fastapi "uvicorn[standard]" pydantic pillow pillow-heif trimesh manifold3d scikit-image fast-simplification rembg huggingface_hub
+uv add --dev pytest httpx ruff
+cd ..
+
+# app
+npm create @quick-start/electron@latest app -- --template react-ts
+cd app
+npm install
+npm install three @react-three/fiber @react-three/drei zustand i18next react-i18next
+npm install -D @types/three vitest @playwright/test
+cd ..
+```
+
+### 14.4 Ежедневно пускане
+```bash
+# терминал 1
+cd "$HOME/Desktop/Developer/personal projects/photo-to-3d/engine"
+uv run python -m photo3d_engine --port 8765 --token dev
+
+# терминал 2
+cd "$HOME/Desktop/Developer/personal projects/photo-to-3d/app"
+ENGINE_URL=http://127.0.0.1:8765 ENGINE_TOKEN=dev npm run dev
+```
+
+---
+
+## 15. Roadmap
+
+Само Mac. Темпото е ~6–8 часа седмично. ✅ = готово и измерено, ☐ = предстои. Всяка фаза има **критерий за готовност**.
+
+### Фаза 0: Проучване 🔬 (в основата готово)
+| # | Задача | Статус |
+|---|---|---|
+| 0.1 | uv + Python 3.11 | ✅ |
+| 0.2 | TripoSR на Mac: CPU и MPS, 5 снимки, време и RAM | ✅ (`docs/benchmarks.md`: MPS ~16 с, CPU ~21 с, ~3.8 GB) |
+| 0.3 | SF3D на Mac (HF акаунт, лиценз) | ☐ по желание, ако TripoSR се окаже слаб на реални снимки |
+| 0.4 | Print pipeline: затворен, мм, основа, STL | ✅ (проверено с trimesh) |
+| 0.5 | **Отваряне на STL в слайсър** (Bambu Studio / OrcaSlicer / PrusaSlicer) | ☐ няма инсталиран слайсър |
+| 0.6 | **Тест с твои снимки на истински предмети** | ☐ |
+| 0.7 | `docs/benchmarks.md` | ✅ |
+
+✅ **Готово, когато:** имаме STL, който слайсър приема без ремонт, от снимка на истински предмет. (Част от това още липсва: 0.5 и 0.6.)
+
+### Фаза 1: Engine core + print pipeline ⚙️ (до сървъра е готово)
+| # | Задача | Статус |
+|---|---|---|
+| 1.1 | `engine/` скелет (uv, ruff, pytest), `platform/devices.py` | ✅ |
+| 1.2 | `projects.py` + `jobs.py` (опашка, отказ, събития) + тестове | ☐ |
+| 1.3 | `server.py`: `/health`, `/projects`, `/jobs`, WS, token | ☐ |
+| 1.4 | `DummyEngine` за тестове без модели | ✅ |
+| 1.5 | `preprocess/` (HEIC, EXIF, rembg, crop) + тестове | ✅ |
+| 1.6 | `engines/triposr.py` | ✅ |
+| 1.7 | `print_prep/`: repair, voxel remesh, orient, scale, base cut, simplify + тестове с счупени mesh-ове | ✅ |
+| 1.8 | `report.py` (watertight, размери, обем, грамове) | ✅ |
+| 1.9 | `export/stl.py` | ✅ (3MF/OBJ/GLB ☐) |
+| 1.10 | CLI: `photo3d make снимка.png --height 50 --out модел.stl` | ✅ |
+
+✅ **Готово, когато:** CLI дава STL, който слайсър приема, и сървърът връща същото през HTTP. (CLI частта е готова, сървърът предстои.)
+
+### Фаза 2: Desktop MVP 🖥️ (~3 седмици)
+| # | Задача |
+|---|---|
+| 2.1 | electron-vite скелет, Tailwind, i18n (bg/en), routing |
+| 2.2 | `engine-manager.ts`: spawn, порт, token, health, рестарт, чисто спиране |
+| 2.3 | preload API + `engine-client.ts` + store |
+| 2.4 | Начало (история) |
+| 2.5 | Импорт: DropZone, preview на маската, качество |
+| 2.6 | Прогрес: етапи, %, отказ |
+| 2.7 | **Workspace:** Viewer3D + PrintBed + PrintReport + PrintControls (мигновен `/print-prep`) |
+| 2.8 | Профили на принтери (10–15 популярни + "Собствен") |
+| 2.9 | Експорт + **"Отвори в слайсъра"** + бутон "Покажи в Quick Look" |
+| 2.10 | Грешки на човешки език |
+
+✅ **Готово, когато:** Снимка → модел върху плочата → "Запази STL" / "Отвори в слайсъра" на твоя Mac. **= v0.1 MVP** 🎉
+
+### Фаза 3: "Много снимки" с Object Capture 📸 (1–2 седмици)
+| # | Задача |
+|---|---|
+| 3.1 | `native/oc-helper` (Swift, RealityKit): `reconstruct` с JSON прогрес и отказ. Проверка дали `swift build` работи без пълен Xcode |
+| 3.2 | `engines/object_capture.py`: subprocess, парсване на прогреса |
+| 3.3 | Преобразуване на изхода (USDZ/OBJ) към mesh и през същия print pipeline към STL |
+| 3.4 | UI: избор на папка със снимки, проверка (≥20 снимки), подсказки "как да снимам", избор на детайл |
+
+✅ **Готово, когато:** 40 снимки от iPhone дават STL, готов за печат.
+
+### Фаза 4: Онбординг, модели, полиране ✨ (2–3 седмици)
+| # | Задача |
+|---|---|
+| 4.1 | First-run wizard (F8): проверка на системата, сваляне на модела с прогрес |
+| 4.2 | Мениджър на модели (+ SF3D с HF вход, ако Фаза 0.3 го одобри) |
+| 4.3 | Overhang heatmap + % в доклада |
+| 4.4 | Автоматична ориентация и опция "добави плоча отдолу" |
+| 4.5 | Завъртане по подразбиране, за да гледа предната страна към -Y (както в слайсърите) |
+| 4.6 | Проверка за нова версия (GitHub Releases API) |
+| 4.7 | Икона, About, лицензи на трети страни |
+| 4.8 | README (bg + en) със снимки и GIF |
+
+### Фаза 5: Release v1.0 за Mac 📦 (1 седмица)
+| # | Задача |
+|---|---|
+| 5.1 | `release.yml`: при таг `vX.Y.Z` → build `.dmg` → GitHub Release (таг само с твое изрично разрешение) |
+| 5.2 | Чеклист за ръчен тест на Mac |
+| 5.3 | Страница в GitHub Pages с бутон за сваляне (като при вестника) |
+| 5.4 | Публикуване в общността: r/3Dprinting, r/BambuLab, r/prusa3d, български групи. Обратна връзка в GitHub Issues |
+
+**Приблизително:** MVP след ~4–5 седмици (остатъкът от Фаза 1 + Фаза 2), **v1.0 за Mac след ~9–10 седмици.** (Engine частта от плана е свършена по-бързо от очакваното, но Electron и Object Capture още не са започнати.)
+
+### След v1.0 (по приоритет според обратната връзка)
+1. **Windows версия:** CI на `windows-latest`, PyTorch CUDA/CPU през uv, `.exe` (NSIS), `taskkill` при спиране на engine-а, пътища на слайсърите за Windows, ръчен тест на PC с NVIDIA и без. Подготовката е в секция 12.
+2. Многоцветен 3MF (AMS/MMU) ⚠️.
+3. Hollowing + дупки за изтичане (resin).
+4. Режим "Литофан" (без AI, бърз за правене, много популярен).
+5. По-тежки модели за мощни машини (TRELLIS.2 иска 24+ GB).
+6. Облачен модел с личен API ключ (по желание).
+7. Auto-update, Linux.
+
+---
+
+## 16. Тестове, CI, пакетиране и release
+
+### 16.1 Тестове
+| Ниво | Какво | Инструмент | Къде |
+|---|---|---|---|
+| Unit (engine) | projects, jobs, preprocess, **print_prep**, export | pytest | Mac CI |
+| API | всички endpoints с DummyEngine | pytest + TestClient | Mac CI |
+| **Print pipeline** | Тестови "счупени" mesh-ове (дупки, обърнати нормали, острови) → резултатът е watertight, в мм, Z_min=0 | pytest | Mac CI |
+| 3MF валидност | Отваряне на експорта с trimesh/lib3mf, проверка на единици и обем | pytest | CI |
+| Модели (бавни) | Реална генерация на 1 снимка | pytest `-m slow` | Само локално (Mac / PC с NVIDIA) |
+| UI unit | store, client, компоненти | Vitest | CI |
+| E2E | Приложението с DummyEngine: импорт → workspace → експорт | Playwright `_electron` | Mac CI |
+| Ръчен | Чеклист: 10 снимки × 3 слайсъра × 2 ОС | — | Преди всеки release |
+
+### 16.2 Качество на кода
+ruff (Python), ESLint + Prettier + `strict` TS. Малки commit-и, клон `master`.
+
+### 16.3 CI (`.github/workflows/ci.yml`)
+```yaml
+on: [push, pull_request]
+jobs:
+  engine:
+    strategy:
+      matrix: { os: [macos-14] }   # Windows се добавя по-късно
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --project engine
+      - run: uv run --project engine ruff check engine
+      - run: uv run --project engine pytest engine/tests -m "not slow"
+  app:
+    strategy:
+      matrix: { os: [macos-14] }   # Windows се добавя по-късно
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm ci --prefix app
+      - run: npm run --prefix app lint
+      - run: npm run --prefix app typecheck
+      - run: npm run --prefix app test
+```
+(Точните версии на actions се проверяват, когато пишем файла.)
+
+### 16.4 Release (`.github/workflows/release.yml`)
+- Тригер: таг `vX.Y.Z` (само с твое изрично разрешение, таговете не се местят).
+- (Windows `.exe` се добавя след v1.0.)
+- `macos-14` → `photo-to-3d-X.Y.Z-arm64.dmg`
+- Качване в GitHub Release + линк от GitHub Pages страницата.
+
+### 16.5 Подписване
+| Платформа | Без подпис | С подпис |
+|---|---|---|
+| Windows | SmartScreen: "Windows protected your PC" → "More info" → "Run anyway" | Сертификат за code signing (Azure Trusted Signing ~$10/мес. ⚠️ наличност за физически лица в ЕС, или OV сертификат ~$200+/год.) |
+| macOS | Gatekeeper: десен бутон → Open, или Settings → Privacy & Security → "Open Anyway" | Apple Developer ID $99/год. + notarization (electron-builder го прави) |
+
+**Препоръка:** v0.x и първите v1.0 без подпис, с ясни инструкции в README. Подпис, ако проектът набере потребители.
+
+---
+
+## 17. Лицензи
+
+### 17.1 Лиценз на приложението
+**Предложение: MIT.** Общността на 3D принтирането обича open source, а MIT позволява на всеки да допринася. Последствие: избягваме GPL библиотеки (напр. pymeshfix) в основния код.
+
+### 17.2 Модели
+| Модел | Може ли да е по подразбиране | Бележка |
+|---|---|---|
+| TripoSR | ✅ | MIT, теглата могат да се свалят автоматично |
+| SF3D | Опционален | Всеки потребител приема лиценза в HF. Безплатно под $1M приход |
+| Hunyuan3D | ❌ | Не важи в ЕС/UK/Южна Корея |
+| TRELLIS.2 | Опционален (v1.x) | MIT, но DINOv3 е gated |
+
+В приложението всеки модел показва лиценза си, а потребителят натиска "Съгласен", преди да се свали.
+
+### 17.3 Моделите, които потребителите правят
+Те са на потребителя. В README: "Внимавай с авторски права, когато снимаш чужди фигури или персонажи."
+
+---
+
+## 18. Рискове
+
+| # | Риск | Вер. | Влияние | Мярка |
+|---|---|---|---|---|
+| R1 | Качеството от една снимка не е достатъчно за печат (меко, без детайли) | Средна | Високо | Фаза 0 с реални принтове. "Детайлно" preset. По-късно TRELLIS.2 за мощни карти и "много снимки" |
+| R2 | Mesh-ът не става watertight | Ниска | Високо | Voxel remesh като гарантиран fallback |
+| R3 | Native компилация (torchmcubes, SF3D) на машината на потребителя | Висока | Високо | Prebuilt wheels в CI или заместители без компилиране |
+| R4 | Голямо първоначално сваляне (PyTorch CUDA ~2.5 GB) и прекъсване | Висока | Средно | Ясен размер в onboarding, възобновяване, повторен опит |
+| R5 | Windows не е тестван (няма PC с NVIDIA) | — | Ниско засега | Отложено след v1.0. Тогава: CI на `windows-latest` и PC за ръчен тест |
+| R6 | MPS бъгове на Mac | Висока | Ниско | CPU по подразбиране, ако MPS се чупи. `MPS_FALLBACK` |
+| R7 | Разлики между слайсърите при 3MF (особено цветове) | Средна | Средно | `docs/slicers.md`, тест с 3 слайсъра. Многоцветното е в v1.x |
+| R8 | Пътища с кирилица и интервали на Windows | Средна | Средно | Тестове с такива пътища в CI |
+| R9 | SmartScreen / Gatekeeper плашат потребителите | Сигурно | Средно | Инструкции със снимки. По-късно подпис |
+| R10 | Лицензни промени при моделите | Ниска | Средно | Plugin интерфейс. По подразбиране MIT модел |
+| R11 | Конкуренцията (MakerWorld) се подобрява | Висока | Средно | Фокус върху локално, безплатно, без лимити, всеки слайсър |
+| R12 | Голям обем работа за един човек | Висока | Средно | Строг MVP, фазите са независими, v1.x по обратна връзка |
+
+---
+
+## 19. Първи стъпки
+
+Вече направено: engine, CLI и измерванията (секция 15). Предстои, по ред:
+
+1. ☐ **Опитай CLI-то с твои снимки на истински предмети** и ми кажи как изглежда резултатът (Фаза 0.6). Това решава дали TripoSR ни стига.
+2. ☐ Инсталирай безплатен слайсър (OrcaSlicer или PrusaSlicer) и отвори получените STL файлове (Фаза 0.5).
+3. ☐ FastAPI сървър, опашка за задачи и проекти със `project.json` (Фаза 1.2 и 1.3).
+4. ☐ `app/` скелет: electron-vite + бутон, който вика `/health` (Фаза 2.1–2.3).
+5. ☐ Екрани: импорт → прогрес → viewer с печатна плоча (Фаза 2.4–2.7).
+6. ☐ Профили на принтери, експорт и "Отвори в слайсъра" (Фаза 2.8–2.9).
+
+---
+
+## 20. Допускания и отворени въпроси
+
+### Допускания
+- **D1.** Платформа: **само macOS на Apple Silicon.** Без Intel Mac, без Linux. Windows е отложен за след v1.0.
+- **D2.** Безплатно и open source (MIT), без продажба.
+- **D3.** Основен режим: **една снимка**. Много снимки (Object Capture, само Mac) е във v1.0.
+- **D4.** Обработката е локална.
+- **D5.** Предмети и фигури, не хора в цял ръст или стаи.
+- **D6.** UI на български + английски.
+- **D7.** FDM е основният случай, resin е вторичен.
+
+### Отворени въпроси
+1. ~~Windows PC с NVIDIA за тестове~~ Не е нужен засега. Ще се върнем към него, когато започнем Windows версията.
+2. **Имаш ли 3D принтер?** Кой? Реалните принтове са най-добрият тест.
+3. **Кои слайсъри да поддържаме първо?** Предложение: Bambu Studio, OrcaSlicer, PrusaSlicer, Cura.
+4. **Лиценз MIT** OK ли е?
+5. **Име:** `photo-to-3d` е работно. Искаш ли нещо по-запомнящо се за общността (напр. "SnapPrint", "Photo2Print", "PrintFromPhoto")? Името трябва да се провери да не е заето.
+6. **GitHub репото** публично ли да е от самото начало?
+
+---
+
+## 21. Източници
+
+- [MakerWorld × Meshy: image-to-3D и многоцветен 3MF в MakerLab](https://3dprintingindustry.com/news/meshy-and-makerworld-team-up-to-put-ai-3d-model-generation-in-bambu-lab-users-hands-250281/)
+- [Bambu Lab форум: MakerLab Image to 3D (лимити, натоварване)](https://forum.bambulab.com/t/new-makerlab-tool-image-to-3d-model/76805)
+- [Tencent Hunyuan 3D 2.0 лиценз (изключва ЕС/UK/Южна Корея)](https://huggingface.co/tencent/Hunyuan3D-2/blob/main/LICENSE)
+- [TripoSR (MIT, ~6 GB)](https://github.com/VAST-AI-Research/TripoSR)
+- [Stable Fast 3D (MPS experimental, ~6 GB)](https://github.com/Stability-AI/stable-fast-3d)
+- [trellis-mac (TRELLIS.2 на Apple Silicon)](https://github.com/shivampkumar/trellis-mac)
+- [Modly (Electron + FastAPI desktop app)](https://github.com/lightningpixel/modly)
+- [AssetFurnace / image-to-3dlab (сравнение на модели на Mac)](https://github.com/Bingeljell/image-to-3dlab)
+- [Hunyuan3D-2 на Mac](https://3dmate.app/guides/hunyuan3d-2-mac)
+- [trimesh (watertight, 3MF, manifold3d булеви операции)](https://pypi.org/project/trimesh/)
+- [Apple Object Capture (WWDC21)](https://developer.apple.com/videos/play/wwdc2021/10076/)
+- [Tauri vs Electron](https://www.levminer.com/blog/tauri-vs-electron)
