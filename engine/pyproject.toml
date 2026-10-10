@@ -2,6 +2,17 @@
 name = "photo3d-engine"
 version = "0.1.0"
 description = "Photo to print-ready STL engine"
+readme = "README.md"
+license = "MIT"
+keywords = ["3d-printing", "image-to-3d", "stl", "triposr", "apple-silicon"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Multimedia :: Graphics :: 3D Modeling",
+]
 authors = [
     { name = "Sarkis Demirdjian", email = "sarkdemi@gmail.com" }
 ]
@@ -26,6 +37,10 @@ dependencies = [
 
 [project.scripts]
 photo3d = "photo3d_engine.cli:main"
+
+[project.urls]
+Repository = "https://github.com/sako4018/photo-to-3d"
+Issues = "https://github.com/sako4018/photo-to-3d/issues"
 
 [build-system]
 requires = ["uv_build>=0.12.24,<0.13.0"]
