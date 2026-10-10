@@ -79,7 +79,14 @@ curl -H "X-Token: dev" -F "photo=@samples/chair.png" http://127.0.0.1:PORT/proje
 curl -H "X-Token: dev" -d '{"project_id":"ID"}' -H 'Content-Type: application/json' http://127.0.0.1:PORT/jobs
 ```
 
-What is verified: 147 automated tests when the server was added (163 now) (with the `DummyEngine`, no AI model) and a manual run on an M1 Pro with the real TripoSR (the model at the time) and `samples/chair.png`: photo to STL over HTTP with the same report as the command line (82,950 triangles, 28.6 × 27.01 × 50 mm, closed), cancelling a running job, changing the height to 70 mm, export, a path with spaces and Cyrillic, and stopping with SIGTERM. **Not verified:** an Electron app (it does not exist yet), many clients at once, and any other computer. Export is STL only for now.
+For the app (Phase 2, [docs/phase-2-app.md](docs/phase-2-app.md), in Bulgarian):
+
+- **Model download:** `POST /engines/triposg/install` starts or resumes the download, `POST /engines/triposg/install/pause` stops it, `GET /engines/triposg/install` gives its state. Progress also comes over the WebSocket as `install` events. The weights go to `<data-dir>/models/triposg/`; a stopped download continues where it stopped. Older weights in the Hugging Face cache count too.
+- **`/health`** also gives the free disk space, the graphics (`apple`, `nvidia` or `none`) and the engine for new projects. **`/engines`** gives where the weights are and how much space they take.
+- **Jobs** have a `step` (for example `{"done": 12, "total": 20}`) while the model takes its steps.
+- **Test mode:** `--engine dummy` makes new projects use the small test engine (no 8 GB download). With `PHOTO3D_DUMMY_SECONDS=10` a job takes 10 s in 5 steps, so the progress screen can be seen.
+
+What is verified: 147 automated tests when the server was added (176 now) (with the `DummyEngine`, no AI model) and a manual run on an M1 Pro with the real TripoSR (the model at the time) and `samples/chair.png`: photo to STL over HTTP with the same report as the command line (82,950 triangles, 28.6 × 27.01 × 50 mm, closed), cancelling a running job, changing the height to 70 mm, export, a path with spaces and Cyrillic, and stopping with SIGTERM. **Not verified:** an Electron app (it does not exist yet), many clients at once, and any other computer. Export is STL only for now.
 
 ## Limitations
 

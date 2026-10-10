@@ -450,15 +450,16 @@ Bambu/Orca и Prusa ползват **различни разширения** н�
 |---|---|---|
 | GET | `/health` | версия, устройство, GPU, свободна памет |
 | GET | `/engines` | модели: лиценз, gated, инсталиран ли е, памет |
-| POST | `/engines/{id}/install` | сваляне → `job_id` |
-| DELETE | `/engines/{id}` | изтриване на тегла |
+| GET/POST | `/engines/{id}/install` | състояние / старт или продължаване на свалянето (✅ 11.10.2026, събития `install` по WS) |
+| POST | `/engines/{id}/install/pause` | пауза на свалянето (✅) |
+| DELETE | `/engines/{id}` | изтриване на тегла (☐) |
 | GET/POST | `/projects` | списък / нов проект |
 | GET/PATCH/DELETE | `/projects/{id}` | детайли / преименуване / изтриване |
 | POST | `/projects/{id}/inputs` | снимка |
 | POST | `/projects/{id}/preview-mask` | PNG без фон за preview |
 | POST | `/jobs` | `{project_id, engine, quality, device}` → `job_id` |
 | GET | `/jobs/{id}` · POST `/jobs/{id}/cancel` | статус / отказ |
-| POST | `/projects/{id}/print-prep` | `{height_mm, base_cut_pct, rotation, target_tris, printer}` → нов mesh + доклад (бързо) |
+| POST | `/projects/{id}/print-prep` | `{height_mm, base_cut_pct, base_plate_mm, rotation, quality}` → нов mesh + доклад (около 1 s) |
 | GET | `/projects/{id}/report` | доклад за принтируемост |
 | POST | `/projects/{id}/export` | `{format: stl\|3mf\|obj\|glb, dest_path}` |
 | WS | `/ws` | `progress` / `done` / `error` събития |
@@ -470,7 +471,6 @@ Bambu/Orca и Prusa ползват **различни разширения** н�
   "manifold": true,
   "bodies": 1,
   "size_mm": [41.2, 38.7, 50.0],
-  "fits_printer": true,
   "volume_cm3": 31.4,
   "filament_g_estimate": { "infill_15": 14.8, "infill_100": 38.9 },
   "triangles": 148302,
