@@ -116,6 +116,7 @@ uv run ruff check .
 ## Documents
 
 - [docs/PLAN.md](docs/PLAN.md): the full plan and roadmap (Bulgarian)
+- [docs/phase-2-app.md](docs/phase-2-app.md): the detailed plan for the windowed app, Phase 2 (Bulgarian)
 - [docs/benchmarks.md](docs/benchmarks.md): measurements and findings (Bulgarian)
 - [docs/decisions/](docs/decisions/): short explanations of the key decisions (Bulgarian)
 - [CONTRIBUTING.md](CONTRIBUTING.md): how to contribute

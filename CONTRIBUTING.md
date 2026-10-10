@@ -17,7 +17,7 @@ From the `engine/` folder:
 
 ```bash
 uv run pytest                 # fast tests, no AI model needed
-uv run pytest -m slow         # slow tests, need the model weights (about 2 GB, see the README)
+uv run pytest -m slow         # slow tests, need the model weights (about 8 GB, see the README)
 uv run ruff check --config pyproject.toml . ../scripts
 uv run ruff format --check --config pyproject.toml . ../scripts
 ```

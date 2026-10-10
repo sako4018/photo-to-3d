@@ -38,6 +38,6 @@ jobs:
       - name: Check formatting
         run: uv run ruff format --check --config pyproject.toml . ../scripts
 
-      # The slow tests need the model weights (about 2 GB), so they only run locally.
+      # The slow tests need the model weights (about 8 GB), so they only run locally.
       - name: Tests
         run: uv run pytest -m "not slow"
