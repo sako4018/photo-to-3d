@@ -215,6 +215,12 @@ def test_simplify_leaves_small_meshes_alone(sphere):
     assert len(simplify(sphere, 10_000).faces) == len(sphere.faces)
 
 
+def test_simplify_keeps_a_mesh_that_is_less_than_twice_the_target():
+    dense = trimesh.creation.icosphere(subdivisions=5, radius=10)  # 20480 faces
+    assert len(simplify(dense, 12_000).faces) == len(dense.faces)
+    assert len(simplify(dense, 9_000).faces) < len(dense.faces)
+
+
 # ---------- report ----------
 
 
