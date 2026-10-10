@@ -293,3 +293,10 @@ def test_real_triposg_through_the_api(tmp_path):
         assert app.state.jobs.wait(job["id"], timeout=600)["status"] == "done"
         report = client.get(f"/projects/{project['id']}/report").json()
         assert report["watertight"] is True and report["size_mm"][2] == pytest.approx(50, abs=0.5)
+
+
+def test_removing_a_model_without_an_own_copy_is_refused(client):
+    reply = client.delete("/engines/dummy/install")
+    assert reply.status_code == 404 and reply.json()["hint"]
+    row = next(item for item in client.get("/engines").json() if item["id"] == "dummy")
+    assert row["own_copy"] is False

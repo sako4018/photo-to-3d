@@ -214,15 +214,38 @@ class JobManager:
 
     @staticmethod
     def _explain(error: Exception) -> dict:
+        """What the user reads: what happened and what to do. `details` is the technical text."""
+        details = f"{type(error).__name__}: {error}"
+        text = str(error)
+        lower = text.lower()
         if isinstance(error, AppError):
-            return error.as_dict()
+            return {**error.as_dict(), "details": details}
+        if isinstance(error, MemoryError) or "out of memory" in lower:
+            return {
+                "error": "The computer ran out of memory.",
+                "hint": "Close other apps and try Fast detail.",
+                "details": details,
+            }
+        if type(error).__name__ == "UnidentifiedImageError":  # PIL: the file is not a picture
+            return {
+                "error": "The photo could not be read.",
+                "hint": "Add it again, or use a JPG or PNG.",
+                "details": details,
+            }
+        if "no subject found" in lower:
+            return {
+                "error": "No object found in the photo.",
+                "hint": "Try a photo with one clear object.",
+                "details": details,
+            }
         if isinstance(error, FileNotFoundError):
-            return {"error": str(error), "hint": "Add the photo again."}
+            return {"error": text, "hint": "Add the photo again.", "details": details}
         if isinstance(error, RuntimeError):
-            return {"error": str(error), "hint": "Details are in the engine log."}
+            return {"error": text, "hint": "Details are in the engine log.", "details": details}
         return {
             "error": f"Something went wrong: {error}",
             "hint": "Try again. If it keeps happening, use a smaller photo or the 'fast' quality.",
+            "details": details,
         }
 
     def _progress(self, job_id: str, stage: str, value: float) -> None:

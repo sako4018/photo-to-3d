@@ -33,6 +33,14 @@ class Engine(ABC):
         """The downloaded files on disk (empty when not installed or nothing to download)."""
         return []
 
+    def own_folder(self) -> Path | None:
+        """The folder the app downloaded the weights to, or None when it keeps no copy of its own.
+
+        Only this folder can be removed by the app. Weights found elsewhere (for example the
+        Hugging Face cache, shared with other tools) are never touched.
+        """
+        return None
+
     @abstractmethod
     def install(self, progress: ProgressFn, cancelled: CancelFn = lambda: False) -> None:
         """Download the weights. Raises Cancelled when stopped; calling it again resumes."""

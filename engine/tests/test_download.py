@@ -6,6 +6,7 @@ import pytest
 from photo3d_engine.download import RemoteFile, done_bytes, download
 from photo3d_engine.engines import registry
 from photo3d_engine.engines.base import Cancelled, Engine
+from photo3d_engine.errors import AppError
 from photo3d_engine.installs import InstallManager
 
 FILES = {"a/config.json": b'{"x": 1}', "a/weights.bin": bytes(range(256)) * 4000}
@@ -188,3 +189,68 @@ def test_install_errors_are_explained(fake_engine, monkeypatch):
     state = installs.wait("fake")
     assert state["status"] == "error"
     assert "connection reset" in state["error"]["error"] and "Retry" in state["error"]["hint"]
+
+
+# ---------- removing the downloaded copy ----------
+
+
+@pytest.fixture
+def own_copy_engine(fake_engine, tmp_path):
+    """The fake engine, with its files in <models>/fake like a real engine's own folder."""
+    fake_engine.folder = tmp_path / "models" / "fake"
+    fake_engine.own_folder = lambda self: self.folder
+    return fake_engine
+
+
+def test_remove_deletes_only_the_apps_own_copy(own_copy_engine):
+    installs = InstallManager()
+    installs.start("fake")
+    installs.wait("fake")
+    assert installs.get("fake")["status"] == "done"
+
+    state = installs.remove("fake")
+
+    assert state["status"] == "idle"
+    assert not own_copy_engine.folder.exists()
+    installs.start("fake")  # can be downloaded again
+    assert installs.wait("fake")["status"] == "done"
+
+
+def test_remove_refuses_when_there_is_no_own_copy(fake_engine):
+    # fake_engine keeps no folder of its own (own_folder() is None)
+    with pytest.raises(AppError) as error:
+        InstallManager().remove("fake")
+    assert error.value.status == 404
+
+
+def test_remove_never_leaves_the_models_folder(own_copy_engine, tmp_path):
+    elsewhere = tmp_path / "somewhere-else"
+    elsewhere.mkdir()
+    (elsewhere / "precious.bin").write_bytes(b"x")
+    own_copy_engine.own_folder = lambda self: elsewhere
+
+    with pytest.raises(AppError) as error:
+        InstallManager().remove("fake")
+
+    assert error.value.status == 400
+    assert (elsewhere / "precious.bin").exists()
+
+
+def test_remove_refuses_while_downloading(own_copy_engine, monkeypatch):
+    installs = InstallManager()
+    gate = threading.Event()
+    real_install = own_copy_engine.install
+
+    def slow_install(self, progress, cancelled=lambda: False):
+        gate.wait(5)
+        real_install(self, progress, cancelled)
+
+    monkeypatch.setattr(own_copy_engine, "install", slow_install)
+    installs.start("fake")
+    try:
+        with pytest.raises(AppError) as error:
+            installs.remove("fake")
+        assert error.value.status == 409
+    finally:
+        gate.set()
+        installs.wait("fake")

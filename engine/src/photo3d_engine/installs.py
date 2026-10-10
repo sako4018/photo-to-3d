@@ -83,6 +83,26 @@ class InstallManager:
             thread.join(timeout=30)  # it stops after the chunk it is writing
         return self.get(engine.id)
 
+    def remove(self, engine_id: str) -> dict:
+        """Delete the app's own downloaded copy. Never touches a copy that lives elsewhere."""
+        engine = get_engine(engine_id)
+        with self._lock:
+            if self.get(engine.id)["status"] == "running":
+                raise AppError("The model is downloading.", "Pause the download first.", 409)
+            folder = engine.own_folder()
+            if folder is None or not Path(folder).is_dir():
+                raise AppError(
+                    "There is no downloaded copy to remove.",
+                    "A copy kept by another tool is not touched.",
+                    404,
+                )
+            folder = Path(folder).resolve()
+            if folder.parent != models_dir().resolve():  # only a folder directly in models/
+                raise AppError("This folder cannot be removed.", "It is not the app's own.", 400)
+            shutil.rmtree(folder)
+            self._state.pop(engine.id, None)
+            return self.get(engine.id)
+
     def wait(self, engine_id: str, timeout: float = 60.0) -> dict:
         """Block until the download is no longer running (for tests)."""
         deadline = time.monotonic() + timeout

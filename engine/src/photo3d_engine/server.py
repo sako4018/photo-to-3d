@@ -146,6 +146,7 @@ def create_app(data_dir: Path, token: str, engine_id: str = DEFAULT_ENGINE) -> F
         for engine_id in engine_ids():
             engine = get_engine(engine_id)
             files = engine.weight_files()
+            own = engine.own_folder()
             found.append(
                 {
                     "id": engine.id,
@@ -156,6 +157,8 @@ def create_app(data_dir: Path, token: str, engine_id: str = DEFAULT_ENGINE) -> F
                     "est_mem_gb": engine.est_mem_gb,
                     "download_gb": engine.download_gb,
                     "installed": engine.is_installed(),
+                    # True when the app downloaded the weights itself (only these can be removed)
+                    "own_copy": bool(own and Path(own).is_dir()),
                     # where the weights are and how much space they take (for Settings)
                     "folder": os.path.commonpath(files) if files else None,
                     "disk_gb": round(sum(f.resolve().stat().st_size for f in files) / 1e9, 2),
@@ -171,6 +174,11 @@ def create_app(data_dir: Path, token: str, engine_id: str = DEFAULT_ENGINE) -> F
     def install_start(engine_id: str) -> dict:
         """Start or resume the download; progress comes as "install" events on /ws."""
         return installs.start(_known(engine_id))
+
+    @api.delete("/engines/{engine_id}/install")
+    def install_remove(engine_id: str) -> dict:
+        """Delete the app's own downloaded copy of the model (Settings > Model > Remove)."""
+        return installs.remove(_known(engine_id))
 
     @api.post("/engines/{engine_id}/install/pause")
     async def install_pause(engine_id: str) -> dict:
@@ -301,12 +309,23 @@ def create_app(data_dir: Path, token: str, engine_id: str = DEFAULT_ENGINE) -> F
         await socket.accept()
         client: asyncio.Queue = asyncio.Queue()
         hub.clients.add(client)
-        try:
+
+        async def send_events() -> None:
             while True:
                 await socket.send_json(await client.get())
+
+        sender = asyncio.create_task(send_events())
+        try:
+            # Nothing is expected from the app, but reading is how we notice that it went away.
+            # Without it a silent client would keep the server from ever stopping.
+            while True:
+                await socket.receive_text()
         except WebSocketDisconnect:
             pass
         finally:
+            sender.cancel()
+            with contextlib.suppress(asyncio.CancelledError, Exception):
+                await sender
             hub.clients.discard(client)
             with contextlib.suppress(Exception):
                 await socket.close()

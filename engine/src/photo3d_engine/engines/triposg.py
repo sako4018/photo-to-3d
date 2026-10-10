@@ -163,6 +163,9 @@ class TripoSGEngine(Engine):
     def is_installed(self) -> bool:
         return all(_cached(name) for name in ALL_FILES)
 
+    def own_folder(self) -> Path | None:
+        return model_folder()
+
     def weight_files(self) -> list[Path]:
         found = [_cached(name) for name in ALL_FILES]
         return [Path(path) for path in found if path]

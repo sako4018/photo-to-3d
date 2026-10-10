@@ -2,6 +2,7 @@ import json
 
 import pytest
 import trimesh
+from PIL import UnidentifiedImageError
 
 from photo3d_engine.engines import registry
 from photo3d_engine.jobs import JobManager, overall_progress
@@ -197,3 +198,30 @@ def test_unknown_job(setup):
     with pytest.raises(Exception) as error:
         jobs.get("j-nope")
     assert error.value.status == 404
+
+
+@pytest.mark.parametrize(
+    ("error", "expected", "hint"),
+    [
+        (MemoryError("x"), "ran out of memory", "Fast detail"),
+        (
+            RuntimeError("MPS backend out of memory (MPS allocated: 9 GB)"),
+            "ran out of memory",
+            "Fast",
+        ),
+        (
+            ValueError("No subject found in the image (it is fully transparent)"),
+            "No object found",
+            "one clear object",
+        ),
+        (UnidentifiedImageError("cannot identify image file"), "could not be read", "JPG or PNG"),
+        (FileNotFoundError("original.png is missing"), "original.png", "Add the photo"),
+        (KeyError("boom"), "Something went wrong", "Try again"),
+    ],
+)
+def test_job_errors_are_explained_in_plain_words(error, expected, hint):
+    problem = JobManager._explain(error)
+
+    assert expected in problem["error"]
+    assert hint in problem["hint"]
+    assert type(error).__name__ in problem["details"]  # the technical text for "Details"
