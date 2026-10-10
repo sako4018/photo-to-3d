@@ -16,7 +16,7 @@ It is for people with a 3D printer who want to turn a photo of a figurine, a toy
 
 ## What works and what is next
 
-The **command line** works: you give it a photo and get a folder with a closed STL, plus a report with the size and the approximate grams of PLA. **There is no windowed app yet.** Next come a FastAPI server and an Electron app where you pick or drag a photo and see the model. The plan is in [docs/PLAN.md](docs/PLAN.md) (in Bulgarian).
+The **command line** works: you give it a photo and get a folder with a closed STL, plus a report with the size and the approximate grams of PLA. A **local HTTP server** (FastAPI) also works. The future app will talk to it: projects, a job queue, live progress over WebSocket, quick changes of height, base and rotation without running the AI model again, and STL export. **There is no windowed app yet.** Next comes an Electron app where you pick or drag a photo and see the model. The plan is in [docs/PLAN.md](docs/PLAN.md) (in Bulgarian).
 
 ## How it will work (planned)
 
@@ -61,6 +61,23 @@ out/chair/
 Options: `--height` (mm), `--quality fast|normal|detailed`, `--device auto|cpu|mps|cuda`, `--no-remove-bg` (the photo already has its background removed).
 
 At the end the same report is printed: closed or not, size in mm, volume, approximate grams of PLA, time per stage and peak memory.
+
+## Server for the app
+
+```bash
+cd "$HOME/Desktop/Developer/personal projects/photo-to-3d/engine"
+uv run python -m photo3d_engine --token dev --data-dir "$HOME/photo3d-data"
+```
+
+The first printed line is JSON with the real port, for example `{"host": "127.0.0.1", "port": 59782, "token": "dev"}` (`--port 0` is the default and picks a free port). It listens on `127.0.0.1` only and every request needs the `X-Token` header. Projects are kept in `<data-dir>/projects/<id>/`.
+
+```bash
+curl -H "X-Token: dev" -d '{"name":"Chair"}' -H 'Content-Type: application/json' http://127.0.0.1:PORT/projects
+curl -H "X-Token: dev" -F "photo=@samples/chair.png" http://127.0.0.1:PORT/projects/ID/inputs
+curl -H "X-Token: dev" -d '{"project_id":"ID"}' -H 'Content-Type: application/json' http://127.0.0.1:PORT/jobs
+```
+
+What is verified: 147 automated tests (with the `DummyEngine`, no AI model) and a manual run on an M1 Pro with the real TripoSR and `samples/chair.png`: photo to STL over HTTP with the same report as the command line (82,950 triangles, 28.6 × 27.01 × 50 mm, closed), cancelling a running job, changing the height to 70 mm, export, a path with spaces and Cyrillic, and stopping with SIGTERM. **Not verified:** an Electron app (it does not exist yet), many clients at once, and any other computer. Export is STL only for now.
 
 ## Limitations
 
