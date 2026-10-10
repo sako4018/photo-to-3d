@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Photo to print-ready STL engine"
 readme = "README.md"
 license = "MIT"
-keywords = ["3d-printing", "image-to-3d", "stl", "triposr", "apple-silicon"]
+keywords = ["3d-printing", "image-to-3d", "stl", "triposg", "apple-silicon"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",
@@ -18,13 +18,11 @@ authors = [
 ]
 requires-python = ">=3.11"
 dependencies = [
-    "einops>=0.8.2",
     "fast-simplification>=0.2.0",
     "fastapi>=0.143.0",
     "huggingface-hub>=0.34,<1",
     "manifold3d>=3.5.4",
     "numpy>=2.4.6",
-    "omegaconf>=2.4.0",
     "pillow>=12.3.0",
     "pillow-heif>=1.8.0",
     "psutil>=7.2.2",
@@ -65,7 +63,6 @@ addopts = "-m 'not slow'"
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-extend-exclude = ["src/photo3d_engine/engines/triposr_vendor"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]

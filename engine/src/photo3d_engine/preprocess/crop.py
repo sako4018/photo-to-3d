@@ -26,11 +26,3 @@ def crop_to_subject(
     canvas = Image.new("RGBA", (side, side), (0, 0, 0, 0))
     canvas.paste(subject, ((side - subject.width) // 2, (side - subject.height) // 2))
     return canvas.resize((size, size), Image.Resampling.LANCZOS)
-
-
-def composite_on_gray(rgba: Image.Image, gray: float = 0.5) -> Image.Image:
-    """Put the cut-out on a neutral grey background (the input TripoSR was trained with)."""
-    data = np.asarray(rgba.convert("RGBA"), dtype=np.float32) / 255.0
-    rgb, alpha = data[..., :3], data[..., 3:4]
-    mixed = rgb * alpha + (1.0 - alpha) * gray
-    return Image.fromarray((mixed * 255.0).round().astype(np.uint8), "RGB")

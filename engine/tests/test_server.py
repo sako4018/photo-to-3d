@@ -62,8 +62,8 @@ def test_health_and_engines(client):
     assert health["version"] and "cpu" in health["devices"] and health["free_memory_gb"] > 0
     engines = {e["id"]: e for e in client.get("/engines").json()}
     assert engines["dummy"]["installed"] is True
-    assert engines["triposr"]["license"] == "MIT" and engines["triposr"]["gated"] is False
-    assert engines["triposg"]["license"] == "MIT" and engines["triposg"]["download_gb"] > 5
+    assert engines["triposg"]["license"] == "MIT" and engines["triposg"]["gated"] is False
+    assert engines["triposg"]["download_gb"] > 5 and "triposr" not in engines
 
 
 def test_project_lifecycle(client):
@@ -249,11 +249,11 @@ def test_deleting_a_project_with_a_running_job_is_refused(client, photo_bytes, g
 
 
 @pytest.mark.slow
-def test_real_triposr_through_the_api(tmp_path):
+def test_real_triposg_through_the_api(tmp_path):
     from photo3d_engine.engines.registry import get_engine
 
-    if not get_engine("triposr").is_installed():
-        pytest.skip("TripoSR weights are not downloaded (run: photo3d install)")
+    if not get_engine("triposg").is_installed():
+        pytest.skip("TripoSG weights are not downloaded (run: photo3d install)")
     sample = Path(__file__).resolve().parents[2] / "samples" / "chair.png"
     app = create_app(tmp_path / "data", TOKEN)
     with TestClient(app, headers=HEADERS) as client:

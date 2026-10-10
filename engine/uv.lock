@@ -298,15 +298,6 @@ nvtx = [
 ]
 
 [[package]]
-name = "einops"
-version = "0.8.2"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/2c/77/850bef8d72ffb9219f0b1aac23fbc1bf7d038ee6ea666f331fa273031aa2/einops-0.8.2.tar.gz", hash = "sha256:609da665570e5e265e27283aab09e7f279ade90c4f01bcfca111f3d3e13f2827", size = 56261, upload-time = "2026-01-26T04:13:17.638Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/2a/09/f8d8f8f31e4483c10a906437b4ce31bdf3d6d417b73fe33f1a8b59e34228/einops-0.8.2-py3-none-any.whl", hash = "sha256:54058201ac7087911181bfec4af6091bb59380360f069276601256a76af08193", size = 65638, upload-time = "2026-01-26T04:13:18.546Z" },
-]
-
-[[package]]
 name = "fast-simplification"
 version = "0.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1240,18 +1231,6 @@ wheels = [
 ]
 
 [[package]]
-name = "omegaconf"
-version = "2.4.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "pyyaml" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/cc/10/1cabf3188a4d9684a06568c7fd76f9536eede625733c8399cf1f5337b83e/omegaconf-2.4.0.tar.gz", hash = "sha256:7e219a70bea371da250285b9c01c7db027bc421722799c2cc4ff14bc4a2a753b", size = 3544508, upload-time = "2026-10-09T12:44:02.326Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/4f/bd/0d9f8247b0819385213d09564eda5c52d3673313c2414d51f72883ec24cd/omegaconf-2.4.0-py3-none-any.whl", hash = "sha256:f141a664c777582405e3cc6e0545ecc79429e79f844995b1a6e71c35946a025c", size = 254152, upload-time = "2026-10-09T12:43:59.764Z" },
-]
-
-[[package]]
 name = "onnxruntime"
 version = "1.31.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1315,14 +1294,12 @@ name = "photo3d-engine"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "einops" },
     { name = "fast-simplification" },
     { name = "fastapi" },
     { name = "huggingface-hub" },
     { name = "manifold3d" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "numpy", version = "2.5.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
-    { name = "omegaconf" },
     { name = "pillow" },
     { name = "pillow-heif" },
     { name = "psutil" },
@@ -1347,13 +1324,11 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "einops", specifier = ">=0.8.2" },
     { name = "fast-simplification", specifier = ">=0.2.0" },
     { name = "fastapi", specifier = ">=0.143.0" },
     { name = "huggingface-hub", specifier = ">=0.34,<1" },
     { name = "manifold3d", specifier = ">=3.5.4" },
     { name = "numpy", specifier = ">=2.4.6" },
-    { name = "omegaconf", specifier = ">=2.4.0" },
     { name = "pillow", specifier = ">=12.3.0" },
     { name = "pillow-heif", specifier = ">=1.8.0" },
     { name = "psutil", specifier = ">=7.2.2" },

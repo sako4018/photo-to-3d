@@ -26,7 +26,7 @@ from .preprocess.image_io import SUPPORTED_SUFFIXES, load_image
 DEFAULT_SETTINGS = {
     "height_mm": 50.0,
     "quality": "normal",
-    "engine": "triposr",
+    "engine": "triposg",
     "device": "auto",
     "remove_bg": True,
     "base_cut_pct": 2.0,

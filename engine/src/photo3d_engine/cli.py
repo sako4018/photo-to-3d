@@ -35,7 +35,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--engine",
         choices=engine_ids(),
         default=DEFAULT_ENGINE,
-        help="triposr: fast (~16 s); triposg: much more detailed (~2 min, 8 GB download)",
+        help="triposg is the model (about 2 min per photo); dummy is only for tests",
     )
     make.add_argument(
         "--plate",
@@ -54,7 +54,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     install = commands.add_parser(
-        "install", help="download the model weights (TripoSR 1.7 GB, TripoSG 7.9 GB)"
+        "install", help="download the model weights (TripoSG, about 7.9 GB)"
     )
     install.add_argument("--engine", choices=engine_ids(), default=DEFAULT_ENGINE)
     return parser

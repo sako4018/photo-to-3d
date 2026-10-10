@@ -3,7 +3,7 @@ import pytest
 from PIL import Image
 
 from photo3d_engine.preprocess.background import has_useful_alpha, remove_background
-from photo3d_engine.preprocess.crop import composite_on_gray, crop_to_subject
+from photo3d_engine.preprocess.crop import crop_to_subject
 from photo3d_engine.preprocess.image_io import load_image
 from photo3d_engine.preprocess.prepare import prepare_image
 
@@ -96,14 +96,6 @@ def test_crop_rejects_an_empty_image():
 def test_crop_rejects_bad_ratio():
     with pytest.raises(ValueError):
         crop_to_subject(cutout(), foreground_ratio=0)
-
-
-def test_composite_on_gray_fills_the_background():
-    result = composite_on_gray(Image.new("RGBA", (4, 4), (255, 0, 0, 0)))
-    assert result.mode == "RGB"
-    assert result.getpixel((0, 0)) == (128, 128, 128)
-    solid = composite_on_gray(Image.new("RGBA", (4, 4), (255, 0, 0, 255)))
-    assert solid.getpixel((0, 0)) == (255, 0, 0)
 
 
 # ---------- background ----------

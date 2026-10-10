@@ -1,6 +1,6 @@
 """TripoSG (weights MIT, VAST-AI): one photo in, a detailed raw 3D mesh out.
 
-Much more detailed than TripoSR and keeps proportions better, but slower and bigger:
+The only model of the app (docs/decisions/007): detailed shapes and correct proportions,
 about 2 minutes per photo on an M1 Pro, about 8 GB download, about 9 GB of memory.
 The networks are this project's own code (see triposg_net.py).
 """
@@ -118,7 +118,7 @@ def surface_mesh(field):
 
 class TripoSGEngine(Engine):
     id = "triposg"
-    name = "TripoSG (detailed)"
+    name = "TripoSG"
     license = "MIT"
     gated = False
     devices = frozenset({"cuda", "mps", "cpu"})

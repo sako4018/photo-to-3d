@@ -190,7 +190,7 @@ def test_real_triposg_makes_a_printable_stl(tmp_path):
     from photo3d_engine.make import make_stl
 
     if not get_engine("triposg").is_installed():
-        pytest.skip("TripoSG weights are not downloaded (run: photo3d install --engine triposg)")
+        pytest.skip("TripoSG weights are not downloaded (run: photo3d install)")
     sample = Path(__file__).resolve().parents[2] / "samples" / "chair.png"
     result = make_stl(
         sample, tmp_path / "chair.stl", height_mm=50, quality="fast", engine_id="triposg"

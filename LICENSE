@@ -21,6 +21,4 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 Third-party code and models keep their own licenses, see the "Third-party"
-section of the README. The vendored TripoSR code in
-engine/src/photo3d_engine/engines/triposr_vendor/ is covered by its own MIT
-license in that folder.
+section of the README.

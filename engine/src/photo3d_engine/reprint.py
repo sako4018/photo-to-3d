@@ -12,7 +12,7 @@ from pathlib import Path
 import trimesh
 
 from .cli import format_result
-from .engines.registry import get_engine
+from .engines.registry import get_engine, raw_up_axis
 from .errors import AppError
 from .export.stl import write_stl
 from .make import MakeResult
@@ -50,7 +50,7 @@ def reprint(folder: Path, project: dict) -> tuple[MakeResult, dict]:
     settings = project["settings"]
     engine = get_engine(settings["engine"])
 
-    mesh = to_z_up(trimesh.load(raw_path, force="mesh"), engine.up_axis)
+    mesh = to_z_up(trimesh.load(raw_path, force="mesh"), raw_up_axis(settings["engine"]))
     for axis, turns in zip("xyz", settings["rotation"], strict=True):
         if turns % 4:
             mesh = rotate_90(mesh, axis, turns)

@@ -3,9 +3,11 @@ import json
 import pytest
 import trimesh
 
+from photo3d_engine.engines import registry
 from photo3d_engine.jobs import JobManager, overall_progress
 from photo3d_engine.print_prep.repair import is_printable
 from photo3d_engine.projects import ProjectStore
+from photo3d_engine.reprint import reprint
 
 
 @pytest.fixture
@@ -59,6 +61,25 @@ def test_the_first_job_already_uses_rotation_base_cut_and_plate(setup, photo_byt
     assert size(turned)[2] == pytest.approx(42, abs=0.3)  # 40 mm model + 2 mm plate
     assert size(turned)[1] != pytest.approx(size(plain)[1], abs=0.5)  # lying on its side
     assert any("base plate" in note for note in store.get(turned)["report"]["notes"])
+
+
+def test_a_project_saved_with_triposr_keeps_working(setup, photo_bytes, monkeypatch):
+    store, jobs, _, _ = setup
+    project_id = project_with_photo(store, photo_bytes, height_mm=45)
+    assert jobs.wait(jobs.submit(project_id)["id"])["status"] == "done"
+    folder = store.folder(project_id)
+
+    # an old project: its raw.glb came from TripoSR, which had z up (the dummy has y up)
+    old = store.update(project_id, settings={"engine": "triposr"})
+    result, _ = reprint(folder, old)
+    width, depth, height = result.report["size_mm"]
+    assert height == pytest.approx(45, abs=0.3)
+    assert max(width, depth) > height  # read as z-up, the y-up figure lies down: axis kept
+
+    # a new job runs the replacement engine and records it, so later reprints use its axis
+    monkeypatch.setitem(registry.RETIRED, "triposr", "dummy")  # the fast stand-in for TripoSG
+    assert jobs.wait(jobs.submit(project_id)["id"])["status"] == "done"
+    assert store.get(project_id)["settings"]["engine"] == "dummy"
 
 
 def test_progress_only_goes_forward_and_ends_with_done(setup, photo_bytes):

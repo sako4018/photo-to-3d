@@ -181,7 +181,11 @@ class JobManager:
             )
             outputs = write_outputs(folder, project, result)
             self.store.update(
-                job["project_id"], status="ready", outputs=outputs, report=result.report
+                job["project_id"],
+                status="ready",
+                outputs=outputs,
+                report=result.report,
+                settings={"engine": result.engine},  # a removed engine id becomes the real one
             )
             self._finish(job_id, "done")
         except Cancelled:

@@ -118,21 +118,3 @@ def test_cli_rejects_unknown_quality():
 def test_cli_install_is_a_noop_for_the_dummy_engine(capsys):
     assert main(["install", "--engine", "dummy"]) == 0
     assert "already downloaded" in capsys.readouterr().out
-
-
-@pytest.mark.slow
-def test_real_triposr_makes_a_printable_stl(tmp_path):
-    from pathlib import Path
-
-    from photo3d_engine.engines.registry import get_engine
-
-    sample = Path(__file__).resolve().parents[2] / "samples" / "chair.png"
-    if not get_engine("triposr").is_installed():
-        pytest.skip("TripoSR weights are not downloaded")
-
-    out = tmp_path / "chair.stl"
-    result = make_stl(sample, out, height_mm=50, quality="fast", engine_id="triposr")
-    stl = trimesh.load(out)
-    assert is_printable(stl)
-    assert stl.extents[2] == pytest.approx(50, rel=0.005)
-    assert result.report["bodies"] == 1
