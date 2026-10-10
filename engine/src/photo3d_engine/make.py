@@ -5,6 +5,7 @@ from __future__ import annotations
 import sys
 import tempfile
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -62,6 +63,7 @@ def make_stl(
     progress: ProgressFn | None = None,
     cancelled: CancelFn | None = None,
     engine: Engine | None = None,
+    on_step: Callable[[int, int], None] | None = None,
 ) -> MakeResult:
     """Run the whole chain and write a binary STL (millimetres, closed, flat base)."""
     if quality not in QUALITY_PRESETS:
@@ -104,7 +106,8 @@ def make_stl(
 
         try:
             started = time.perf_counter()
-            raw_path = engine.run(rgba_path, work, {"quality": quality}, progress, cancelled)
+            params = {"quality": quality, "on_step": on_step}
+            raw_path = engine.run(rgba_path, work, params, progress, cancelled)
             timed("generate", started)
         finally:
             engine.unload()

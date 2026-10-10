@@ -83,8 +83,10 @@ def folder_slug(name: str) -> str:
 
 
 class ProjectStore:
-    def __init__(self, data_dir: Path) -> None:
+    def __init__(self, data_dir: Path, engine_id: str | None = None) -> None:
         self.root = Path(data_dir).resolve() / "projects"
+        # new projects use this engine (the server's --engine; "dummy" in the app's tests)
+        self.defaults = {**DEFAULT_SETTINGS, **({"engine": engine_id} if engine_id else {})}
         self.root.mkdir(parents=True, exist_ok=True)
         self._lock = threading.RLock()
 
@@ -125,7 +127,7 @@ class ProjectStore:
             "created": datetime.now().isoformat(timespec="seconds"),
             "status": "empty",
             "image": None,
-            "settings": {**DEFAULT_SETTINGS, **(settings or {})},
+            "settings": {**self.defaults, **(settings or {})},
             "outputs": {},
             "last_job": None,
             "report": None,

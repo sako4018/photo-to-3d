@@ -18,6 +18,8 @@ from ..platform.devices import free_device_memory
 from .base import CancelFn, Cancelled, Engine, ProgressFn
 
 REPO_ID = "VAST-AI/TripoSG"
+# the exact version of the weights that triposg_net.py was checked against
+REVISION = "2c1c516d22d58db486a058d98d31bb6177344e06"
 FLOW_FILES = ("transformer/config.json", "transformer/diffusion_pytorch_model.safetensors")
 DECODER_FILES = ("vae/config.json", "vae/diffusion_pytorch_model.safetensors")
 IMAGE_FILES = ("image_encoder_dinov2/config.json", "image_encoder_dinov2/model.safetensors")
@@ -39,11 +41,36 @@ QUALITY = {
 REFINE_BAND = 2.0
 
 
+def model_folder() -> Path:
+    from ..paths import models_dir
+
+    return models_dir() / "triposg"
+
+
 def _cached(filename: str) -> str | None:
+    """The file in the app's model folder, else in the Hugging Face cache (older installs)."""
+    own = model_folder() / filename
+    if own.is_file():
+        return str(own)
     from huggingface_hub import try_to_load_from_cache
 
-    found = try_to_load_from_cache(REPO_ID, filename)
+    found = try_to_load_from_cache(REPO_ID, filename, revision=REVISION)
+    if not isinstance(found, str):
+        found = try_to_load_from_cache(REPO_ID, filename)
     return found if isinstance(found, str) else None
+
+
+def remote_files():
+    """Name, address and size of every file to download (asks Hugging Face for the sizes)."""
+    from huggingface_hub import get_hf_file_metadata, hf_hub_url
+
+    from ..download import RemoteFile
+
+    found = []
+    for name in ALL_FILES:
+        url = hf_hub_url(REPO_ID, name, revision=REVISION)
+        found.append(RemoteFile(name, url, get_hf_file_metadata(url).size))
+    return found
 
 
 def prepare_photo(rgba: Image.Image) -> Image.Image:
@@ -136,13 +163,17 @@ class TripoSGEngine(Engine):
     def is_installed(self) -> bool:
         return all(_cached(name) for name in ALL_FILES)
 
-    def install(self, progress: ProgressFn) -> None:
-        from huggingface_hub import hf_hub_download
+    def weight_files(self) -> list[Path]:
+        found = [_cached(name) for name in ALL_FILES]
+        return [Path(path) for path in found if path]
 
-        for index, filename in enumerate(ALL_FILES):
-            progress("install", index / len(ALL_FILES))
-            hf_hub_download(repo_id=REPO_ID, filename=filename)
-        progress("install", 1.0)
+    def install(self, progress: ProgressFn, cancelled: CancelFn = lambda: False) -> None:
+        from ..download import download
+
+        def on_bytes(done: int, total: int) -> None:
+            progress("install", done / total if total else 1.0)
+
+        download(remote_files(), model_folder(), on_bytes, cancelled)
 
     def load(self, device: str) -> None:
         import torch
@@ -204,6 +235,7 @@ class TripoSGEngine(Engine):
         out_dir.mkdir(parents=True, exist_ok=True)
         preset = QUALITY[params.get("quality", "normal")]
         steps = int(params.get("steps") or preset["steps"])
+        on_step = params.get("on_step")  # (step, steps) for the app's "step 12 of 20"
 
         def check_cancel() -> None:
             if cancelled():
@@ -228,6 +260,8 @@ class TripoSGEngine(Engine):
                 plain, with_photo = self.flow(torch.cat([tokens, tokens]), t, image).chunk(2)
                 velocity = plain + GUIDANCE * (with_photo - plain)
                 tokens = tokens + (sigmas[step] - sigmas[step + 1]) * velocity
+                if on_step:
+                    on_step(step + 1, steps)
                 progress("generate", 0.7 * (step + 1) / steps)
 
             memory = self.decoder.memory(tokens)

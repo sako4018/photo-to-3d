@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import hmac
+import os
 import shutil
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -31,10 +32,13 @@ from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field
 
 from . import __version__
-from .engines.registry import engine_ids, get_engine
+from .engines.registry import DEFAULT_ENGINE, engine_ids, get_engine
 from .errors import AppError
+from .installs import InstallManager, free_disk_gb
 from .jobs import JobManager
+from .paths import models_dir
 from .platform.devices import available_devices
+from .platform.hardware import gpu
 from .projects import ProjectStore, check_settings
 from .reprint import reprint
 
@@ -86,19 +90,21 @@ class Hub:
             self.loop.call_soon_threadsafe(client.put_nowait, event)
 
 
-def create_app(data_dir: Path, token: str) -> FastAPI:
+def create_app(data_dir: Path, token: str, engine_id: str = DEFAULT_ENGINE) -> FastAPI:
     hub = Hub()
-    store = ProjectStore(data_dir)
+    store = ProjectStore(data_dir, engine_id)
     jobs = JobManager(store, data_dir, on_event=hub.publish)
+    installs = InstallManager(on_event=hub.publish)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         hub.loop = asyncio.get_running_loop()
         yield
+        installs.shutdown()
         await asyncio.to_thread(jobs.shutdown)
 
     app = FastAPI(title="photo-to-3d engine", version=__version__, lifespan=lifespan)
-    app.state.store, app.state.jobs = store, jobs
+    app.state.store, app.state.jobs, app.state.installs = store, jobs, installs
 
     def require_token(x_token: str | None = Header(default=None)) -> None:
         if x_token is None or not hmac.compare_digest(x_token, token):
@@ -128,6 +134,9 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
             "devices": available_devices(),
             "free_memory_gb": round(memory.available / 1e9, 1),
             "total_memory_gb": round(memory.total / 1e9, 1),
+            "free_disk_gb": round(free_disk_gb(models_dir()), 1),
+            "gpu": gpu(),
+            "engine": engine_id,  # the engine new projects use
             "data_dir": str(store.root.parent),
         }
 
@@ -136,6 +145,7 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
         found = []
         for engine_id in engine_ids():
             engine = get_engine(engine_id)
+            files = engine.weight_files()
             found.append(
                 {
                     "id": engine.id,
@@ -146,9 +156,30 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
                     "est_mem_gb": engine.est_mem_gb,
                     "download_gb": engine.download_gb,
                     "installed": engine.is_installed(),
+                    # where the weights are and how much space they take (for Settings)
+                    "folder": os.path.commonpath(files) if files else None,
+                    "disk_gb": round(sum(f.resolve().stat().st_size for f in files) / 1e9, 2),
                 }
             )
         return found
+
+    @api.get("/engines/{engine_id}/install")
+    def install_state(engine_id: str) -> dict:
+        return installs.get(_known(engine_id))
+
+    @api.post("/engines/{engine_id}/install", status_code=202)
+    def install_start(engine_id: str) -> dict:
+        """Start or resume the download; progress comes as "install" events on /ws."""
+        return installs.start(_known(engine_id))
+
+    @api.post("/engines/{engine_id}/install/pause")
+    async def install_pause(engine_id: str) -> dict:
+        return await asyncio.to_thread(installs.pause, _known(engine_id))
+
+    def _known(engine_id: str) -> str:
+        if engine_id not in engine_ids():
+            raise AppError(f"Unknown model {engine_id!r}.", "Pick one from /engines.", 404)
+        return engine_id
 
     # --- projects -----------------------------------------------------------------------
 

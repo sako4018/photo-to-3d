@@ -197,3 +197,39 @@ def test_real_triposg_makes_a_printable_stl(tmp_path):
     )
     assert result.report["watertight"] and result.report["bodies"] == 1
     assert result.report["size_mm"][2] == pytest.approx(50, abs=0.5)
+
+
+def test_weights_in_the_app_folder_are_used_first(tmp_path, monkeypatch):
+    from photo3d_engine.engines import triposg
+
+    monkeypatch.setenv("PHOTO3D_MODELS_DIR", str(tmp_path))
+    for name in triposg.ALL_FILES:
+        path = tmp_path / "triposg" / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"x")
+    assert triposg._cached(triposg.FLOW_FILES[1]) == str(
+        tmp_path / "triposg" / triposg.FLOW_FILES[1]
+    )
+    assert get_engine("triposg").is_installed()
+    files = get_engine("triposg").weight_files()
+    assert len(files) == len(triposg.ALL_FILES) and files[0].parent.parent == tmp_path / "triposg"
+
+
+def test_install_downloads_the_pinned_files_into_the_app_folder(tmp_path, monkeypatch):
+    from photo3d_engine.download import RemoteFile
+    from photo3d_engine.engines import triposg
+
+    monkeypatch.setenv("PHOTO3D_MODELS_DIR", str(tmp_path))
+    asked = {}
+
+    def fake_download(files, folder, on_bytes, cancelled):
+        asked.update(folder=folder, names=[f.name for f in files])
+        on_bytes(10, 10)
+
+    fake = [RemoteFile(n, f"https://example/{triposg.REVISION}/{n}", 10) for n in triposg.ALL_FILES]
+    monkeypatch.setattr(triposg, "remote_files", lambda: fake)
+    monkeypatch.setattr("photo3d_engine.download.download", fake_download)
+    seen = []
+    get_engine("triposg").install(lambda stage, fraction: seen.append(fraction))
+    assert asked["folder"] == tmp_path / "triposg" and asked["names"] == list(triposg.ALL_FILES)
+    assert seen[-1] == 1.0

@@ -3,10 +3,15 @@
 The figure is a body (capsule) with a head (sphere) and two ears, stacked along +Y
 like a glTF model. The parts overlap and are NOT merged, so the raw mesh is not clean
 (several bodies, internal faces), just like a real model's output can be.
+
+PHOTO3D_DUMMY_SECONDS=10 makes a run take that long (in steps), so the app's progress
+screen can be tried without the real model.
 """
 
 from __future__ import annotations
 
+import os
+import time
 from pathlib import Path
 
 import trimesh
@@ -41,7 +46,7 @@ class DummyEngine(Engine):
     def is_installed(self) -> bool:
         return True
 
-    def install(self, progress: ProgressFn) -> None:
+    def install(self, progress: ProgressFn, cancelled: CancelFn = lambda: False) -> None:
         progress("install", 1.0)
 
     def load(self, device: str) -> None:
@@ -60,8 +65,15 @@ class DummyEngine(Engine):
     ) -> Path:
         out_dir.mkdir(parents=True, exist_ok=True)
         progress("generate", 0.0)
-        if cancelled():
-            raise Cancelled()
+        steps, on_step = 5, params.get("on_step")
+        pause = float(os.environ.get("PHOTO3D_DUMMY_SECONDS", "0")) / steps
+        for step in range(steps):
+            if cancelled():
+                raise Cancelled()
+            time.sleep(pause)
+            if on_step:
+                on_step(step + 1, steps)
+            progress("generate", 0.9 * (step + 1) / steps)
         figure = build_figure()
         out = out_dir / "raw.glb"
         figure.export(out)

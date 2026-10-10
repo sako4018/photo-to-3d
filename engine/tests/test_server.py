@@ -64,6 +64,31 @@ def test_health_and_engines(client):
     assert engines["dummy"]["installed"] is True
     assert engines["triposg"]["license"] == "MIT" and engines["triposg"]["gated"] is False
     assert engines["triposg"]["download_gb"] > 5 and "triposr" not in engines
+    assert health["free_disk_gb"] > 0 and health["gpu"]["kind"] in ("apple", "nvidia", "none")
+    assert health["engine"] == "triposg"
+    assert engines["dummy"]["folder"] is None and engines["dummy"]["disk_gb"] == 0
+
+
+def test_the_test_engine_mode_makes_new_projects_use_it(tmp_path, photo_bytes):
+    app = create_app(tmp_path / "data", TOKEN, engine_id="dummy")
+    with TestClient(app, headers=HEADERS) as client:
+        assert client.get("/health").json()["engine"] == "dummy"
+        project = client.post("/projects", json={"name": "Cup"}).json()
+        assert project["settings"]["engine"] == "dummy"
+
+
+def test_install_endpoints(client):
+    assert client.get("/engines/dummy/install").json()["status"] == "done"
+    started = client.post("/engines/dummy/install")
+    assert started.status_code == 202 and started.json()["status"] == "done"
+    assert client.post("/engines/dummy/install/pause").json()["status"] == "done"
+    missing = client.post("/engines/nope/install")
+    assert missing.status_code == 404 and missing.json()["hint"]
+
+
+def test_a_job_reports_the_model_steps(client, photo_bytes):
+    project_id, job_id = make_model(client, photo_bytes)
+    assert client.get(f"/jobs/{job_id}").json()["step"] == {"done": 5, "total": 5}
 
 
 def test_project_lifecycle(client):

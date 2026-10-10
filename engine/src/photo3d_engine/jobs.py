@@ -77,6 +77,7 @@ class JobManager:
             "status": "queued",
             "stage": "queued",
             "progress": 0.0,
+            "step": None,  # {"done": 12, "total": 20} while the model takes its steps
             "error": None,
             "created": datetime.now().isoformat(timespec="seconds"),
             "finished": None,
@@ -164,6 +165,10 @@ class JobManager:
                 name, value = overall_progress(stage, fraction)
                 self._progress(job_id, name, value)
 
+            def on_step(done: int, total: int) -> None:
+                with self._lock:
+                    self._jobs[job_id]["step"] = {"done": done, "total": total}
+
             result = make_stl(
                 folder / project["image"],
                 stl,
@@ -178,6 +183,7 @@ class JobManager:
                 work_dir=folder / "details",
                 progress=progress,
                 cancelled=cancel.is_set,
+                on_step=on_step,
             )
             outputs = write_outputs(folder, project, result)
             self.store.update(

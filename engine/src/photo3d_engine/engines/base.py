@@ -29,9 +29,13 @@ class Engine(ABC):
     def is_installed(self) -> bool:
         """True if everything needed (weights included) is available offline."""
 
+    def weight_files(self) -> list[Path]:
+        """The downloaded files on disk (empty when not installed or nothing to download)."""
+        return []
+
     @abstractmethod
-    def install(self, progress: ProgressFn) -> None:
-        """Download the weights."""
+    def install(self, progress: ProgressFn, cancelled: CancelFn = lambda: False) -> None:
+        """Download the weights. Raises Cancelled when stopped; calling it again resumes."""
 
     @abstractmethod
     def load(self, device: str) -> None:
