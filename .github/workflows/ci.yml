@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  engine:
+    name: engine (ruff and tests)
+    # Apple Silicon runner. macos-14 is deprecated and goes away on 2026-11-02.
+    runs-on: macos-15
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: engine
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+          cache-dependency-glob: engine/uv.lock
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Lint
+        run: uv run ruff check --config pyproject.toml . ../scripts
+
+      - name: Check formatting
+        run: uv run ruff format --check --config pyproject.toml . ../scripts
+
+      # The slow tests need the model weights (about 2 GB), so they only run locally.
+      - name: Tests
+        run: uv run pytest -m "not slow"
