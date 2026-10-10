@@ -29,7 +29,7 @@ All of these must pass before a change is merged. The CI runs the first, third a
 - Keep commits small, one clear step each. Write the message in English, in the imperative: `Add input validation to the CLI`.
 - Add or update a test with the change. The print-preparation tests use hand-made broken meshes and need no model.
 - Do not commit model weights, `out/` or `.venv/`. They are in `.gitignore`.
-- The vendored TripoSR code in `engine/src/photo3d_engine/engines/triposr_vendor/` keeps its own MIT license. If you change it, write the change down in its `NOTICE.md`.
+- Do not copy code from the TripoSG repository into `engines/triposg_net.py` or `engines/triposg.py`: parts of it are under Tencent licenses that exclude the EU (see `docs/decisions/006-triposg-own-code.md`).
 - Do not rewrite history that others may have pulled (no force push).
 
 ## Reporting a problem
