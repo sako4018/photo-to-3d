@@ -71,7 +71,8 @@ def make_stl(
     engine = engine or get_engine(engine_id)
     if not engine.is_installed():
         raise RuntimeError(
-            f"Model {engine.id!r} is not downloaded yet (it needs about 2 GB). Run: photo3d install"
+            f"Model {engine.id!r} is not downloaded yet (it needs about "
+            f"{engine.download_gb:g} GB). Run: photo3d install --engine {engine.id}"
         )
     resolved_device = pick_device(device)
 

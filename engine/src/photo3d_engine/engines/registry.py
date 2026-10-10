@@ -19,9 +19,16 @@ def _triposr() -> Engine:
     return TripoSREngine()
 
 
+def _triposg() -> Engine:
+    from .triposg import TripoSGEngine
+
+    return TripoSGEngine()
+
+
 _FACTORIES: dict[str, Callable[[], Engine]] = {
     "dummy": _dummy,
     "triposr": _triposr,
+    "triposg": _triposg,
 }
 
 DEFAULT_ENGINE = "triposr"

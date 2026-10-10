@@ -63,6 +63,7 @@ def test_health_and_engines(client):
     engines = {e["id"]: e for e in client.get("/engines").json()}
     assert engines["dummy"]["installed"] is True
     assert engines["triposr"]["license"] == "MIT" and engines["triposr"]["gated"] is False
+    assert engines["triposg"]["license"] == "MIT" and engines["triposg"]["download_gb"] > 5
 
 
 def test_project_lifecycle(client):

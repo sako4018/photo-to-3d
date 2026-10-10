@@ -38,6 +38,7 @@ class TripoSREngine(Engine):
     gated = False
     devices = frozenset({"cuda", "mps", "cpu"})
     est_mem_gb = 6.0
+    download_gb = 1.7
     up_axis = "z"  # checked against real output, see docs/benchmarks.md
 
     def __init__(self) -> None:

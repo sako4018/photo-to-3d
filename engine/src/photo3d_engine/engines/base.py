@@ -21,6 +21,7 @@ class Engine(ABC):
     gated: bool = False
     devices: frozenset[str] = frozenset({"cpu"})
     est_mem_gb: float = 0.0
+    download_gb: float = 0.0  # size of the weights that `install` downloads
     # Which axis of the produced mesh points up: "y" (glTF convention) or "z".
     up_axis: str = "y"
 

@@ -143,6 +143,7 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
                     "gated": engine.gated,
                     "devices": sorted(engine.devices),
                     "est_mem_gb": engine.est_mem_gb,
+                    "download_gb": engine.download_gb,
                     "installed": engine.is_installed(),
                 }
             )

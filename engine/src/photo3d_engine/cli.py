@@ -31,7 +31,12 @@ def build_parser() -> argparse.ArgumentParser:
     make.add_argument("--height", type=float, default=50.0, help="model height in mm (default 50)")
     make.add_argument("--quality", choices=list(QUALITY_PRESETS), default="normal")
     make.add_argument("--device", choices=list(VALID_DEVICES), default="auto")
-    make.add_argument("--engine", choices=engine_ids(), default=DEFAULT_ENGINE)
+    make.add_argument(
+        "--engine",
+        choices=engine_ids(),
+        default=DEFAULT_ENGINE,
+        help="triposr: fast (~16 s); triposg: much more detailed (~2 min, 8 GB download)",
+    )
     make.add_argument(
         "--no-remove-bg", action="store_true", help="the photo already has a cut-out background"
     )
@@ -41,7 +46,9 @@ def build_parser() -> argparse.ArgumentParser:
         help="only with --out file.stl: folder to keep the prepared input and raw.glb in",
     )
 
-    install = commands.add_parser("install", help="download the model weights (about 2 GB)")
+    install = commands.add_parser(
+        "install", help="download the model weights (TripoSR 1.7 GB, TripoSG 7.9 GB)"
+    )
     install.add_argument("--engine", choices=engine_ids(), default=DEFAULT_ENGINE)
     return parser
 
@@ -109,7 +116,10 @@ def run_install(args: argparse.Namespace) -> int:
     if engine.is_installed():
         print(f"{engine.name} is already downloaded.")
         return 0
-    print(f"Downloading {engine.name} ({engine.license} license), this can take a few minutes...")
+    print(
+        f"Downloading {engine.name} ({engine.license} license, about {engine.download_gb:g} GB), "
+        "this can take a while..."
+    )
     engine.install(lambda stage, fraction: print(f"  {fraction:.0%}", file=sys.stderr))
     print("Done.")
     return 0
