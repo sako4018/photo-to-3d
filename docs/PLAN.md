@@ -6,6 +6,18 @@
 > Какво вече е направено: виж секция 15 (✅ = готово и измерено, ☐ = предстои) и `docs/benchmarks.md`.
 > Решенията с ⚠️ трябва да се потвърдят с тест.
 
+## Резюме (за нов читател)
+
+- **Какво е:** програма, която от една снимка прави затворен, готов за печат STL модел. Работи локално, без облак.
+- **За кого:** хора с 3D принтер. Засега само Mac с Apple Silicon, Windows е след v1.0.
+- **Какво работи днес:** командният ред (`photo3d make снимка.jpg`). Приложение с прозорец още няма. Измерванията са в [benchmarks.md](benchmarks.md).
+- **Модел:** TripoSR (MIT), който се събира в 16 GB. Ограниченията са описани честно в [README](../README.md#ограничения).
+- **Следва:** FastAPI сървър, после Electron приложение (избираш снимка, виждаш модела), после "много снимки" с Object Capture.
+- **Къде са решенията:** в [decisions/](decisions/): [Electron](decisions/001-electron.md), [TripoSR](decisions/002-triposr-default.md), [voxel remesh](decisions/003-voxel-remesh-fallback.md), [Mac първо](decisions/004-mac-first.md), [папка за всяка снимка](decisions/005-per-photo-folders.md).
+- **Какво е готово и какво не:** виж секция 15 (✅ и ☐). Този файл е дълъг работен план, а за преглед започни от [README](../README.md).
+
+---
+
 ## Съдържание
 
 1. [Визия и обхват](#1-визия-и-обхват)
@@ -763,33 +775,33 @@ on: [push, pull_request]
 jobs:
   engine:
     strategy:
-      matrix: { os: [macos-14] }   # Windows се добавя по-късно
+      matrix: { os: [macos-15] }   # Windows се добавя по-късно
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
       - run: uv sync --project engine
       - run: uv run --project engine ruff check engine
       - run: uv run --project engine pytest engine/tests -m "not slow"
   app:
     strategy:
-      matrix: { os: [macos-14] }   # Windows се добавя по-късно
+      matrix: { os: [macos-15] }   # Windows се добавя по-късно
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with: { node-version: 22 }
       - run: npm ci --prefix app
       - run: npm run --prefix app lint
       - run: npm run --prefix app typecheck
       - run: npm run --prefix app test
 ```
-(Точните версии на actions се проверяват, когато пишем файла.)
+(Версиите са проверени на 10.10.2026: `macos-14` е deprecated и спира на 2.11.2026, затова ползваме `macos-15`. Реалният файл е `.github/workflows/ci.yml`.)
 
 ### 16.4 Release (`.github/workflows/release.yml`)
 - Тригер: таг `vX.Y.Z` (само с твое изрично разрешение, таговете не се местят).
 - (Windows `.exe` се добавя след v1.0.)
-- `macos-14` → `photo-to-3d-X.Y.Z-arm64.dmg`
+- `macos-15` → `photo-to-3d-X.Y.Z-arm64.dmg`
 - Качване в GitHub Release + линк от GitHub Pages страницата.
 
 ### 16.5 Подписване
@@ -830,7 +842,7 @@ jobs:
 | R2 | Mesh-ът не става watertight | Ниска | Високо | Voxel remesh като гарантиран fallback |
 | R3 | Native компилация (torchmcubes, SF3D) на машината на потребителя | Висока | Високо | Prebuilt wheels в CI или заместители без компилиране |
 | R4 | Голямо първоначално сваляне (PyTorch CUDA ~2.5 GB) и прекъсване | Висока | Средно | Ясен размер в onboarding, възобновяване, повторен опит |
-| R5 | Windows не е тестван (няма PC с NVIDIA) | — | Ниско засега | Отложено след v1.0. Тогава: CI на `windows-latest` и PC за ръчен тест |
+| R5 | Windows не е тестван (на M1 CUDA не може да се тества; дали има PC с NVIDIA, не е уточнено) | — | Ниско засега | Отложено след v1.0. Тогава: CI на `windows-latest` и PC за ръчен тест |
 | R6 | MPS бъгове на Mac | Висока | Ниско | CPU по подразбиране, ако MPS се чупи. `MPS_FALLBACK` |
 | R7 | Разлики между слайсърите при 3MF (особено цветове) | Средна | Средно | `docs/slicers.md`, тест с 3 слайсъра. Многоцветното е в v1.x |
 | R8 | Пътища с кирилица и интервали на Windows | Средна | Средно | Тестове с такива пътища в CI |
