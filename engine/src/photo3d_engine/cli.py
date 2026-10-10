@@ -38,6 +38,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="triposr: fast (~16 s); triposg: much more detailed (~2 min, 8 GB download)",
     )
     make.add_argument(
+        "--plate",
+        type=float,
+        default=0.0,
+        metavar="MM",
+        help="add a flat plate this thick under the model (for models on thin legs)",
+    )
+    make.add_argument(
         "--no-remove-bg", action="store_true", help="the photo already has a cut-out background"
     )
     make.add_argument(
@@ -69,6 +76,7 @@ def format_result(result: MakeResult) -> str:
         f"  volume     : {report['volume_cm3']} cm3",
         f"  PLA (est.) : ~{grams['infill_15']} g at 15% infill, ~{grams['infill_100']} g solid",
         f"  triangles  : {report['triangles']}",
+        f"  bed contact: {report.get('base_contact_mm2', 0):g} mm2",
         f"  engine     : {result.engine} on {result.device}",
         "  time (s)   : "
         + ", ".join(f"{name.strip()} {sec}" for name, sec in result.timings.items()),
@@ -97,6 +105,7 @@ def run_make(args: argparse.Namespace) -> int:
         device=args.device,
         engine_id=args.engine,
         remove_bg=not args.no_remove_bg,
+        base_plate_mm=args.plate,
         work_dir=outputs.details or args.keep_work,
         progress=show,
     )

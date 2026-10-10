@@ -16,6 +16,7 @@ from .export.stl import write_stl
 from .platform.devices import free_device_memory, pick_device
 from .preprocess.background import release_session
 from .preprocess.prepare import prepare_image
+from .print_prep.orient import rotate_90, to_z_up
 from .print_prep.pipeline import QUALITY_PRESETS, PrintParams, prepare_for_print
 
 
@@ -54,6 +55,9 @@ def make_stl(
     device: str = "auto",
     engine_id: str = DEFAULT_ENGINE,
     remove_bg: bool = True,
+    base_cut_fraction: float = 0.02,
+    base_plate_mm: float = 0.0,
+    rotation: tuple[int, int, int] = (0, 0, 0),
     work_dir: Path | None = None,
     progress: ProgressFn | None = None,
     cancelled: CancelFn | None = None,
@@ -108,11 +112,18 @@ def make_stl(
 
         started = time.perf_counter()
         progress("print_prep", 0.0)
-        raw = trimesh.load(raw_path, force="mesh")
-        result = prepare_for_print(
-            raw,
-            PrintParams(height_mm=height_mm, up_axis=engine.up_axis, quality=quality),
+        raw = to_z_up(trimesh.load(raw_path, force="mesh"), engine.up_axis)
+        for axis, turns in zip("xyz", rotation, strict=True):
+            if turns % 4:
+                raw = rotate_90(raw, axis, turns)
+        params = PrintParams(
+            height_mm=height_mm,
+            up_axis="z",  # already turned upright above
+            quality=quality,
+            base_cut_fraction=base_cut_fraction,
+            base_plate_mm=base_plate_mm,
         )
+        result = prepare_for_print(raw, params)
         timed("print_prep", started)
         for name, seconds in result.timings.items():
             timings[f"  {name}"] = seconds

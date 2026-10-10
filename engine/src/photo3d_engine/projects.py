@@ -30,6 +30,7 @@ DEFAULT_SETTINGS = {
     "device": "auto",
     "remove_bg": True,
     "base_cut_pct": 2.0,
+    "base_plate_mm": 0.0,  # 0 = no plate under the model
     "rotation": [0, 0, 0],  # quarter turns around x, y, z
 }
 STATUSES = ("empty", "ready", "error")
@@ -53,6 +54,7 @@ def check_settings(options: dict) -> dict:
         "engine": lambda v: v in engine_ids(),
         "height_mm": lambda v: number(v, 5, 500),
         "base_cut_pct": lambda v: number(v, 0, 20),
+        "base_plate_mm": lambda v: number(v, 0, 10),
         "remove_bg": lambda v: isinstance(v, bool),
         "rotation": lambda v: (
             isinstance(v, list) and len(v) == 3 and all(isinstance(t, int) for t in v)

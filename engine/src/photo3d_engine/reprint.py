@@ -60,6 +60,7 @@ def reprint(folder: Path, project: dict) -> tuple[MakeResult, dict]:
         up_axis="z",  # already turned upright above
         quality=settings["quality"],
         base_cut_fraction=float(settings["base_cut_pct"]) / 100.0,
+        base_plate_mm=float(settings.get("base_plate_mm", 0.0)),
     )
     try:
         printed = prepare_for_print(mesh, params)

@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 import trimesh
 
 from .base_cut import NotManifoldError, cut_base
+from .base_plate import add_base_plate
 from .islands import remove_islands
 from .orient import to_z_up
 from .repair import is_printable, repair
@@ -28,6 +29,10 @@ QUALITY_PRESETS: dict[str, tuple[int, int]] = {
 # a real teddy-bear mesh needed 3 (the default 7 pinched two surfaces together).
 SIMPLIFY_AGGRESSIVENESS = (7, 3, 1)
 
+# below this the model may fall over or come loose while printing
+SMALL_CONTACT_MM2 = 25.0
+SMALL_CONTACT_SHARE = 0.02  # of the box around the model seen from above
+
 
 @dataclass
 class PrintParams:
@@ -36,6 +41,7 @@ class PrintParams:
     quality: str = "normal"
     base_cut_fraction: float = 0.02
     island_fraction: float = 0.01
+    base_plate_mm: float = 0.0  # 0 = no plate; else a plate this thick is added under the model
     target_faces: int | None = None  # None = taken from the quality preset
 
 
@@ -45,6 +51,18 @@ class PrintResult:
     report: dict
     timings: dict[str, float] = field(default_factory=dict)
     notes: list[str] = field(default_factory=list)
+
+
+def small_contact_note(report: dict) -> str | None:
+    """A warning when the model touches the bed with too little area, else None."""
+    contact = report["base_contact_mm2"]
+    width, depth, _ = report["size_mm"]
+    if contact >= SMALL_CONTACT_MM2 and contact >= SMALL_CONTACT_SHARE * width * depth:
+        return None
+    return (
+        f"the model touches the bed with only {contact:g} mm2: "
+        "use a brim or supports in the slicer, or add a base plate"
+    )
 
 
 def prepare_for_print(raw: trimesh.Trimesh, params: PrintParams | None = None) -> PrintResult:
@@ -101,6 +119,15 @@ def prepare_for_print(raw: trimesh.Trimesh, params: PrintParams | None = None) -
     mesh = place_on_bed(mesh)
     stage("scale", started)
 
+    if params.base_plate_mm > 0:
+        started = time.perf_counter()
+        mesh = place_on_bed(add_base_plate(mesh, params.base_plate_mm))
+        notes.append(
+            f"added a {params.base_plate_mm:g} mm base plate "
+            f"(total height {params.height_mm + params.base_plate_mm:g} mm)"
+        )
+        stage("base_plate", started)
+
     started = time.perf_counter()
     for aggressiveness in SIMPLIFY_AGGRESSIVENESS:
         simplified = simplify(mesh, target_faces, aggressiveness)
@@ -116,5 +143,9 @@ def prepare_for_print(raw: trimesh.Trimesh, params: PrintParams | None = None) -
     started = time.perf_counter()
     report = build_report(mesh)
     stage("report", started)
+    contact_note = small_contact_note(report)
+    if contact_note:
+        notes.append(contact_note)
+    report["notes"] = list(notes)
 
     return PrintResult(mesh=mesh, report=report, timings=timings, notes=notes)

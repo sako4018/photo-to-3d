@@ -61,6 +61,7 @@ class NewJob(BaseModel):
 class PrintPrep(BaseModel):
     height_mm: float | None = None
     base_cut_pct: float | None = None
+    base_plate_mm: float | None = None
     rotation: list[int] | None = None
     quality: str | None = None
 

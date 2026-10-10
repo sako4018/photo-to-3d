@@ -4,11 +4,12 @@ import trimesh
 
 from photo3d_engine.engines.dummy import DummyEngine
 from photo3d_engine.print_prep.base_cut import NotManifoldError, cut_base
+from photo3d_engine.print_prep.base_plate import add_base_plate
 from photo3d_engine.print_prep.islands import remove_islands
 from photo3d_engine.print_prep.orient import rotate_90, to_z_up
 from photo3d_engine.print_prep.pipeline import PrintParams, prepare_for_print
 from photo3d_engine.print_prep.repair import is_printable, repair
-from photo3d_engine.print_prep.report import build_report
+from photo3d_engine.print_prep.report import base_contact_mm2, build_report
 from photo3d_engine.print_prep.scale import place_on_bed, scale_to_height
 from photo3d_engine.print_prep.simplify import simplify
 from photo3d_engine.print_prep.voxel_remesh import voxel_remesh
@@ -241,6 +242,57 @@ def test_report_flags_an_open_mesh(sphere_big_hole):
     assert report["watertight"] is False
     assert report["manifold"] is False
     assert report["volume_cm3"] == 0
+
+
+def stilts() -> trimesh.Trimesh:
+    """A table-like solid on four thin legs, z-up, standing on z = 0 (one closed body)."""
+    import manifold3d
+
+    top = manifold3d.Manifold.cube([20, 20, 4]).translate([0, 0, 16])
+    for x, y in ((1, 1), (18, 1), (1, 18), (18, 18)):
+        top = top + manifold3d.Manifold.cube([1, 1, 17]).translate([x, y, 0])
+    out = top.to_mesh()
+    return trimesh.Trimesh(np.asarray(out.vert_properties)[:, :3], np.asarray(out.tri_verts))
+
+
+def test_bed_contact_of_a_cube_and_of_thin_legs():
+    cube = trimesh.creation.box(extents=[10, 10, 10])
+    assert base_contact_mm2(cube) == pytest.approx(100.0)
+    assert build_report(cube)["base_contact_mm2"] == 100.0
+    assert base_contact_mm2(stilts()) == pytest.approx(4.0)  # four 1 x 1 mm legs
+
+
+def test_base_plate_joins_under_the_model_into_one_solid():
+    model = stilts()
+    plated = add_base_plate(model, 2.0)
+    assert is_printable(plated) and len(plated.split(only_watertight=False)) == 1
+    assert plated.bounds[0][2] == pytest.approx(-2.0)
+    assert plated.extents[2] == pytest.approx(model.extents[2] + 2.0)
+    # the plate reaches 2 mm beyond the outline on every side
+    assert plated.extents[0] == pytest.approx(model.extents[0] + 4.0, abs=0.1)
+    assert base_contact_mm2(plated) > 20 * 20
+    assert add_base_plate(model, 0).extents[2] == pytest.approx(model.extents[2])
+
+
+def test_pipeline_warns_about_a_small_bed_contact_and_a_plate_fixes_it():
+    thin = prepare_for_print(stilts(), PrintParams(height_mm=40, up_axis="z", base_cut_fraction=0))
+    assert any("touches the bed with only" in note for note in thin.notes)
+    assert thin.report["notes"] == thin.notes  # the app gets the same notes
+
+    plated = prepare_for_print(
+        stilts(), PrintParams(height_mm=40, up_axis="z", base_cut_fraction=0, base_plate_mm=2)
+    )
+    assert is_printable(plated.mesh) and plated.report["bodies"] == 1
+    assert plated.mesh.extents[2] == pytest.approx(42, rel=0.005)
+    assert plated.report["base_contact_mm2"] > 1000
+    assert not any("touches the bed" in note for note in plated.notes)
+    assert any("base plate" in note for note in plated.notes)
+
+
+def test_a_cube_needs_no_contact_warning():
+    cube = trimesh.creation.box(extents=[10, 10, 10])
+    result = prepare_for_print(cube, PrintParams(height_mm=20, up_axis="z"))
+    assert result.report["notes"] == [] and result.notes == []
 
 
 # ---------- whole pipeline ----------

@@ -17,6 +17,16 @@ def filament_grams(volume_mm3: float, area_mm2: float, infill: float) -> float:
     return printed_cm3 * PLA_DENSITY_G_CM3
 
 
+def base_contact_mm2(mesh: trimesh.Trimesh, tolerance_mm: float = 0.05) -> float:
+    """Area of the triangles lying flat on the bed: the part of the model that sticks to it."""
+    if len(mesh.faces) == 0:
+        return 0.0
+    lowest = mesh.bounds[0, 2]
+    highest_corner = mesh.vertices[mesh.faces][:, :, 2].max(axis=1)
+    on_bed = (highest_corner - lowest < tolerance_mm) & (mesh.face_normals[:, 2] < -0.99)
+    return float(mesh.area_faces[on_bed].sum())
+
+
 def build_report(mesh: trimesh.Trimesh) -> dict:
     watertight = bool(mesh.is_watertight)
     consistent = bool(mesh.is_winding_consistent)
@@ -35,4 +45,5 @@ def build_report(mesh: trimesh.Trimesh) -> dict:
             "infill_100": round(filament_grams(volume_mm3, area_mm2, 1.0), 1),
         },
         "triangles": int(len(mesh.faces)),
+        "base_contact_mm2": round(base_contact_mm2(mesh), 1),
     }

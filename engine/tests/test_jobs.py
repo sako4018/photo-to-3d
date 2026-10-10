@@ -44,6 +44,23 @@ def test_a_job_makes_a_print_ready_stl(setup, photo_bytes):
     assert project["report"]["watertight"] is True
 
 
+def test_the_first_job_already_uses_rotation_base_cut_and_plate(setup, photo_bytes):
+    store, jobs, _, _ = setup
+    plain = project_with_photo(store, photo_bytes, height_mm=40)
+    turned = project_with_photo(
+        store, photo_bytes, height_mm=40, rotation=[1, 0, 0], base_cut_pct=5, base_plate_mm=2
+    )
+    for project_id in (plain, turned):
+        assert jobs.wait(jobs.submit(project_id)["id"])["status"] == "done"
+
+    def size(project_id):
+        return store.get(project_id)["report"]["size_mm"]
+
+    assert size(turned)[2] == pytest.approx(42, abs=0.3)  # 40 mm model + 2 mm plate
+    assert size(turned)[1] != pytest.approx(size(plain)[1], abs=0.5)  # lying on its side
+    assert any("base plate" in note for note in store.get(turned)["report"]["notes"])
+
+
 def test_progress_only_goes_forward_and_ends_with_done(setup, photo_bytes):
     store, jobs, events, _ = setup
     job = jobs.submit(project_with_photo(store, photo_bytes))

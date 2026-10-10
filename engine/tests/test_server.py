@@ -158,6 +158,12 @@ def test_print_prep_changes_the_model_without_a_new_generation(client, photo_byt
     assert taller["report"]["size_mm"][2] == pytest.approx(70, abs=0.3)
     assert (folder / "Мече_70mm.stl").is_file() and (folder / "Мече_50mm.stl").is_file()
 
+    plated = client.post(f"/projects/{project_id}/print-prep", json={"base_plate_mm": 3}).json()
+    assert plated["settings"]["base_plate_mm"] == 3
+    assert plated["report"]["size_mm"][2] == pytest.approx(73, abs=0.3)
+    assert any("base plate" in note for note in plated["report"]["notes"])
+    client.post(f"/projects/{project_id}/print-prep", json={"base_plate_mm": 0})
+
     lying = client.post(f"/projects/{project_id}/print-prep", json={"rotation": [1, 0, 0]}).json()
     assert lying["report"]["watertight"] is True
     assert lying["report"]["size_mm"][2] == pytest.approx(70, abs=0.3)  # height is kept
