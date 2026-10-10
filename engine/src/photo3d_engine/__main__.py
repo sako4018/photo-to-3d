@@ -1,0 +1,50 @@
+"""Start the engine server: python -m photo3d_engine --port 0 --token SECRET --data-dir FOLDER
+
+The first line printed is JSON with the real port (and the token), so the desktop app can read it.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import secrets
+import socket
+import sys
+from pathlib import Path
+
+import uvicorn
+
+from .server import create_app
+
+HOST = "127.0.0.1"  # never listen on the network
+
+
+def default_data_dir() -> Path:
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Application Support" / "photo-to-3d"
+    return Path.home() / ".photo-to-3d"
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(prog="photo3d_engine", description="photo-to-3d engine server")
+    parser.add_argument("--port", type=int, default=0, help="0 = pick a free port (default)")
+    parser.add_argument("--token", help="secret for the X-Token header (default: a random one)")
+    parser.add_argument("--data-dir", type=Path, default=default_data_dir())
+    args = parser.parse_args(argv)
+
+    token = args.token or secrets.token_urlsafe(24)
+    app = create_app(args.data_dir, token)
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.bind((HOST, args.port))
+    port = sock.getsockname()[1]
+    print(json.dumps({"host": HOST, "port": port, "token": token}), flush=True)
+
+    # uvicorn stops cleanly on SIGTERM and SIGINT and runs the app shutdown (stops the worker)
+    uvicorn.Server(uvicorn.Config(app, log_level="warning")).run(sockets=[sock])
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
