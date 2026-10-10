@@ -1,0 +1,29 @@
+.workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+}
+
+.workspace-title {
+  font-size: 16px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.workspace-body {
+  display: flex;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+}
+
+.workspace-view {
+  flex: 1;
+  min-width: 0;
+}
+
+.workspace-note {
+  text-align: center;
+  margin-top: 40px;
+}

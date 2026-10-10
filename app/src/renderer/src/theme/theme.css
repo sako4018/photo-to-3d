@@ -1,0 +1,23 @@
+/* Theme tokens. Dark only, orange accent with dark text on it
+   (docs/phase-2-app.md, section 1). */
+:root {
+  color-scheme: dark;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --bg: #161618;
+  --surface: #1f1f22;
+  --surface-raised: #29292d;
+  --border: #34343a;
+  --text: #f2f2f4;
+  --text-muted: #9a9aa2;
+  --accent: #f2a65a;
+  --accent-text: #1a1206;
+  --success: #4cc38a;
+  --warning: #f5c451;
+  --danger: #ff6b60;
+
+  --radius: 10px;
+  --space: 8px;
+  --sidebar-width: 220px;
+}

@@ -1,0 +1,165 @@
+.layout {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) 1fr;
+  height: 100%;
+}
+
+.layout.dragging .content {
+  outline: 2px dashed var(--accent);
+  outline-offset: -8px;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 44px 10px 12px; /* top space for the macOS traffic lights */
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  -webkit-app-region: drag;
+  min-height: 0;
+}
+
+.sidebar nav,
+.sidebar button,
+.sidebar .engine-badge {
+  -webkit-app-region: no-drag;
+}
+
+.new-photo {
+  text-align: left;
+  background: var(--surface-raised);
+}
+
+.sidebar nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.project-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.project-row.active {
+  background: var(--surface-raised);
+}
+
+.thumb {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.project-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.project-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.content {
+  padding: 44px 24px 24px;
+  overflow: auto;
+  min-height: 0;
+}
+
+.engine-badge {
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 0 8px;
+}
+
+.engine-badge .dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+  background: var(--text-muted);
+}
+
+.engine-badge .dot.ok {
+  background: var(--success);
+}
+
+.engine-badge .dot.bad {
+  background: var(--danger);
+}
+
+.layout {
+  position: relative;
+}
+
+.toast {
+  position: absolute;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  max-width: 560px;
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+}
+
+.rename-input {
+  width: 100%;
+  min-width: 0;
+  padding: 1px 4px;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  user-select: text;
+}
+
+.rename-input.title {
+  text-align: center;
+  font-size: 16px;
+  font-weight: 600;
+  width: 320px;
+}
+
+.sidebar-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  -webkit-app-region: no-drag;
+}
+
+.sidebar-bottom .link {
+  color: var(--text-muted);
+  text-decoration: none;
+  padding: 0 8px;
+}

@@ -1,0 +1,95 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1 {
+  font-size: 22px;
+  margin: 0 0 var(--space);
+}
+
+p {
+  color: var(--text-muted);
+}
+
+button {
+  font: inherit;
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+button.primary {
+  background: var(--accent);
+  color: var(--accent-text);
+  border-color: var(--accent);
+}
+
+code {
+  font-family: var(--font-mono);
+}
+
+button.link {
+  border: none;
+  background: none;
+  padding: 0 0 0 6px;
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.splash {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  height: 100%;
+  padding: 44px 24px 24px;
+  -webkit-app-region: drag;
+}
+
+.splash pre {
+  max-width: 560px;
+  overflow: auto;
+  padding: 12px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text-muted);
+  white-space: pre-wrap;
+}
+
+.splash button {
+  -webkit-app-region: no-drag;
+}
+
+/* An app, not a web page: text in the interface is not selectable (error details still are). */
+body {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+pre,
+code,
+input {
+  user-select: text;
+  -webkit-user-select: text;
+}

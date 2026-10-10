@@ -1,0 +1,177 @@
+.inspector {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: 280px;
+  flex: none;
+  padding: 16px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.inspector h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.print-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.print-row .mark {
+  width: 16px;
+}
+
+.print-row.ok .mark {
+  color: var(--success);
+}
+
+.print-row.warn .mark {
+  color: var(--warning);
+}
+
+.print-row.bad .mark {
+  color: var(--danger);
+}
+
+.print-row button {
+  margin-top: 6px;
+}
+
+.inspector .hint {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.inspector .hint.bad {
+  color: var(--danger);
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.field > span:first-child {
+  flex: none;
+  width: 88px;
+}
+
+.field input[type='range'] {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--accent);
+}
+
+.field .value {
+  width: 44px;
+  text-align: right;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.field input[type='checkbox'] {
+  accent-color: var(--accent);
+}
+
+.input-unit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+}
+
+.input-unit input {
+  width: 80px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+
+.input-unit input.invalid {
+  border-color: var(--danger);
+}
+
+.turns {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.turns button {
+  padding: 6px 4px;
+}
+
+.segmented {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin-bottom: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.segmented button {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  padding: 6px 4px;
+}
+
+.segmented button.selected {
+  background: var(--surface-raised);
+  color: var(--accent);
+}
+
+.inspector section > button {
+  width: 100%;
+}
+
+.spinner {
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.inspector-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.inspector-actions p {
+  margin: 0;
+  word-break: break-all;
+}
+
+.inspector-actions .link {
+  align-self: center;
+  padding: 2px;
+}

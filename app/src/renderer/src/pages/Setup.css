@@ -1,0 +1,91 @@
+.setup {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 44px 24px 24px;
+  -webkit-app-region: drag;
+}
+
+.setup-card {
+  width: 480px;
+  max-width: 100%;
+  -webkit-app-region: no-drag;
+}
+
+.setup-card h2 {
+  font-size: 15px;
+  margin: 28px 0 8px;
+}
+
+.setup-card .muted {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.setup-card .bad {
+  color: var(--danger);
+}
+
+.checks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.checks li {
+  display: grid;
+  grid-template-columns: 24px 1fr auto;
+  gap: 2px 8px;
+  padding: 10px 14px;
+}
+
+.checks li + li {
+  border-top: 1px solid var(--border);
+}
+
+.checks .check-value {
+  color: var(--text-muted);
+}
+
+.checks .check-note {
+  grid-column: 2 / 4;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.checks .ok .mark {
+  color: var(--success);
+}
+
+.checks .warn .mark {
+  color: var(--warning);
+}
+
+.checks .bad .mark {
+  color: var(--danger);
+}
+
+.bar {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--surface-raised);
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.3s;
+}
+
+.bar-info {
+  display: flex;
+  justify-content: space-between;
+  margin: 8px 0 14px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
