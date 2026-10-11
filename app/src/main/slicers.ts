@@ -1,4 +1,4 @@
-import { join } from 'path'
+import { posix } from 'path'
 import type { SlicerInfo } from '@shared/types'
 
 interface SlicerDef {
@@ -48,7 +48,7 @@ export function findSlicers(
   for (const slicer of SLICERS) {
     const candidates =
       platform === 'darwin'
-        ? slicer.mac.flatMap((app) => [join('/Applications', app), join(homeDir, 'Applications', app)])
+        ? slicer.mac.flatMap((app) => [posix.join('/Applications', app), posix.join(homeDir, 'Applications', app)])
         : platform === 'win32'
           ? programFiles.flatMap((base) => slicer.win.map((exe) => `${base}\\${exe}`))
           : []
