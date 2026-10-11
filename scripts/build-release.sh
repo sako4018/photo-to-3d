@@ -41,13 +41,14 @@ UV_URL="https://github.com/astral-sh/uv/releases/download/$UV_VERSION"
 fetch "$UV_URL/uv-aarch64-apple-darwin.tar.gz" "uv-$UV_VERSION-mac.tar.gz"
 fetch "$UV_URL/uv-x86_64-pc-windows-msvc.zip" "uv-$UV_VERSION-win.zip"
 fetch "https://github.com/electron/electron/releases/download/v$ELECTRON_VERSION/electron-v$ELECTRON_VERSION-win32-x64.zip" "electron-$ELECTRON_VERSION-win.zip"
-# 7-Zip (LGPL): the Mac build packs the Windows installer, 7z.sfx from the Windows installer is its stub
+# 7-Zip (LGPL, public domain SDK): 7zz packs the Windows installer on the Mac; 7zSD.sfx from the
+# LZMA SDK is the stub that unpacks it to a temp folder, runs it and removes the folder afterwards
 SEVENZIP_URL="https://www.7-zip.org/a"
 fetch "$SEVENZIP_URL/7z2301-mac.tar.xz" "7z2301-mac.tar.xz"
-fetch "$SEVENZIP_URL/7z2301-x64.exe" "7z2301-x64.exe"
+fetch "$SEVENZIP_URL/lzma2301.7z" "lzma2301.7z"
 mkdir -p "$WORK/7z-mac" "$WORK/7z-win"
 tar -xf "$CACHE/7z2301-mac.tar.xz" -C "$WORK/7z-mac"
-"$WORK/7z-mac/7zz" x -y -o"$WORK/7z-win" "$CACHE/7z2301-x64.exe" 7z.sfx >/dev/null
+"$WORK/7z-mac/7zz" e -y -o"$WORK/7z-win" "$CACHE/lzma2301.7z" bin/7zSD.sfx >/dev/null
 mkdir -p "$WORK/uv-mac" "$WORK/uv-win"
 tar -xzf "$CACHE/uv-$UV_VERSION-mac.tar.gz" -C "$WORK/uv-mac" --strip-components=1
 unzip -q "$CACHE/uv-$UV_VERSION-win.zip" -d "$WORK/uv-win"
@@ -141,15 +142,14 @@ WININST="$WORK/win-inst/photo-to-3d Installer"
 make_win "$WININST" "photo-to-3d Installer"
 put_installer "$WININST/resources"
 rm -f "$OUT/Photo-to-3D-Installer-win-x64.zip" "$OUT/Photo-to-3D-Setup-win-x64.exe"
-(cd "$WORK/win-inst" && "$WORK/7z-mac/7zz" a -mx=5 -bso0 "$WORK/installer.7z" "photo-to-3d Installer")
+(cd "$WORK/win-inst" && "$WORK/7z-mac/7zz" a -m0=LZMA2 -mf=BCJ -mx=5 -bso0 "$WORK/installer.7z" "photo-to-3d Installer")
 cat > "$WORK/sfx.txt" <<'SFX'
 ;!@Install@!UTF-8!
 Title="photo-to-3d installer"
-GUIMode="1"
 RunProgram="\"photo-to-3d Installer\\photo-to-3d Installer.exe\""
 ;!@InstallEnd@!
 SFX
-cat "$WORK/7z-win/7z.sfx" "$WORK/sfx.txt" "$WORK/installer.7z" > "$OUT/Photo-to-3D-Setup-win-x64.exe"
+cat "$WORK/7z-win/7zSD.sfx" "$WORK/sfx.txt" "$WORK/installer.7z" > "$OUT/Photo-to-3D-Setup-win-x64.exe"
 
 echo "==> Done"
 ls -lh "$OUT"
