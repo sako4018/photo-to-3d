@@ -40,6 +40,10 @@ jobs:
         run: npm ci
         working-directory: app
 
+      - name: Download the Electron binary
+        run: node node_modules/electron/install.js
+        working-directory: app
+
       - name: Build the downloads
         run: scripts/build-release.sh http://127.0.0.1:8791/
 
