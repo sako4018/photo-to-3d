@@ -146,7 +146,8 @@ rm -f "$OUT/Photo-to-3D-Installer-win-x64.zip" "$OUT/Photo-to-3D-Setup-win-x64.e
 cat > "$WORK/sfx.txt" <<'SFX'
 ;!@Install@!UTF-8!
 Title="photo-to-3d installer"
-RunProgram="\"photo-to-3d Installer\\photo-to-3d Installer.exe\""
+Directory=""
+RunProgram="\"%%T\\photo-to-3d Installer\\photo-to-3d Installer.exe\""
 ;!@InstallEnd@!
 SFX
 cat "$WORK/7z-win/7zSD.sfx" "$WORK/sfx.txt" "$WORK/installer.7z" > "$OUT/Photo-to-3D-Setup-win-x64.exe"
