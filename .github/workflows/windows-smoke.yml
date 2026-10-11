@@ -53,7 +53,7 @@ jobs:
           path: |
             site/downloads/latest.json
             site/downloads/Photo-to-3D-app-win-x64.zip
-            site/downloads/Photo-to-3D-Installer-win-x64.zip
+            site/downloads/Photo-to-3D-Setup-win-x64.exe
           retention-days: 3
 
   windows:
@@ -78,12 +78,12 @@ jobs:
 
       - name: Run the installer window
         run: |
-          Expand-Archive serve/Photo-to-3D-Installer-win-x64.zip -DestinationPath inst
           New-Item -ItemType Directory shots, install | Out-Null
           $env:P3D_AUTOSTART = '1'
           $env:P3D_SHOT = "$PWD\shots"
           $env:P3D_INSTALL_DIR = "$PWD\install"
-          $p = Start-Process "inst\photo-to-3d Installer\photo-to-3d Installer.exe" -PassThru
+          # the single downloaded file: unpacks itself and opens the installer window
+          $p = Start-Process "serve\Photo-to-3D-Setup-win-x64.exe" -PassThru
           $deadline = (Get-Date).AddMinutes(40)
           while ((Get-Date) -lt $deadline -and -not (Test-Path shots\done.png) -and -not (Test-Path shots\error.png)) {
             Start-Sleep 5

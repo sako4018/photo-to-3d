@@ -4,7 +4,7 @@
   var buttons = document.querySelectorAll("[data-download]");
   var INSTALLERS = {
     mac: { href: "downloads/Photo-to-3D-Installer-arm64.dmg", label: "Download for Mac" },
-    win: { href: "downloads/Photo-to-3D-Installer-win-x64.zip", label: "Download for Windows" }
+    win: { href: "downloads/Photo-to-3D-Setup-win-x64.exe", label: "Download for Windows" }
   };
   // Mac is the default; Windows only when the browser says so.
   var mine = /Windows/i.test(navigator.userAgent) ? "win" : "mac";

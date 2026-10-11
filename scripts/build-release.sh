@@ -3,7 +3,8 @@
 #   Photo-to-3D-app-arm64.zip / Photo-to-3D-app-win-x64.zip   the full app for each system
 #       (Electron + app code + engine source + uv; the Python environment is made by the installer)
 #   latest.json                                               size and SHA-256 of both zips
-#   Photo-to-3D-Installer-arm64.dmg / Photo-to-3D-Installer-win-x64.zip   the small installer windows
+#   Photo-to-3D-Installer-arm64.dmg / Photo-to-3D-Setup-win-x64.exe   the small installer windows
+#       (the .exe is one file: a 7-Zip self-extractor that starts the installer window)
 # Usage: scripts/build-release.sh [base-url]   (default http://localhost:8791/downloads/)
 # The Windows files are made from the Windows build of Electron, so nothing is compiled here.
 # They are not signed: Windows SmartScreen will warn on the first start.
@@ -40,6 +41,13 @@ UV_URL="https://github.com/astral-sh/uv/releases/download/$UV_VERSION"
 fetch "$UV_URL/uv-aarch64-apple-darwin.tar.gz" "uv-$UV_VERSION-mac.tar.gz"
 fetch "$UV_URL/uv-x86_64-pc-windows-msvc.zip" "uv-$UV_VERSION-win.zip"
 fetch "https://github.com/electron/electron/releases/download/v$ELECTRON_VERSION/electron-v$ELECTRON_VERSION-win32-x64.zip" "electron-$ELECTRON_VERSION-win.zip"
+# 7-Zip (LGPL): the Mac build packs the Windows installer, 7z.sfx from the Windows installer is its stub
+SEVENZIP_URL="https://www.7-zip.org/a"
+fetch "$SEVENZIP_URL/7z2301-mac.tar.xz" "7z2301-mac.tar.xz"
+fetch "$SEVENZIP_URL/7z2301-x64.exe" "7z2301-x64.exe"
+mkdir -p "$WORK/7z-mac" "$WORK/7z-win"
+tar -xf "$CACHE/7z2301-mac.tar.xz" -C "$WORK/7z-mac"
+"$WORK/7z-mac/7zz" x -y -o"$WORK/7z-win" "$CACHE/7z2301-x64.exe" 7z.sfx >/dev/null
 mkdir -p "$WORK/uv-mac" "$WORK/uv-win"
 tar -xzf "$CACHE/uv-$UV_VERSION-mac.tar.gz" -C "$WORK/uv-mac" --strip-components=1
 unzip -q "$CACHE/uv-$UV_VERSION-win.zip" -d "$WORK/uv-win"
@@ -132,8 +140,16 @@ echo "==> Windows: installer"
 WININST="$WORK/win-inst/photo-to-3d Installer"
 make_win "$WININST" "photo-to-3d Installer"
 put_installer "$WININST/resources"
-rm -f "$OUT/Photo-to-3D-Installer-win-x64.zip"
-(cd "$WORK/win-inst" && zip -qr -9 "$OUT/Photo-to-3D-Installer-win-x64.zip" "photo-to-3d Installer")
+rm -f "$OUT/Photo-to-3D-Installer-win-x64.zip" "$OUT/Photo-to-3D-Setup-win-x64.exe"
+(cd "$WORK/win-inst" && "$WORK/7z-mac/7zz" a -mx=5 -bso0 "$WORK/installer.7z" "photo-to-3d Installer")
+cat > "$WORK/sfx.txt" <<'SFX'
+;!@Install@!UTF-8!
+Title="photo-to-3d installer"
+GUIMode="1"
+RunProgram="\"photo-to-3d Installer\\photo-to-3d Installer.exe\""
+;!@InstallEnd@!
+SFX
+cat "$WORK/7z-win/7z.sfx" "$WORK/sfx.txt" "$WORK/installer.7z" > "$OUT/Photo-to-3D-Setup-win-x64.exe"
 
 echo "==> Done"
 ls -lh "$OUT"
