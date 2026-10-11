@@ -7,7 +7,7 @@
 
 A tool that turns **one photo** of an object into a **print-ready 3D model in STL format**: closed (watertight), in millimetres, with a flat base. It runs entirely on your own computer, with no cloud and no account.
 
-It is for people with a 3D printer who want to turn a photo of a figurine, a toy or a gift into a model for their slicer without learning Blender. For now it only runs on a Mac with Apple Silicon.
+It is for people with a 3D printer who want to turn a photo of a figurine, a toy or a gift into a model for their slicer without learning Blender. The main target is a Mac with Apple Silicon. There is also a Windows version that has not been tried on a real computer yet.
 
 ![Teddy bear: photo, background removed, 3D model](docs/images/teddy.png)
 ![Garden gnome: photo, background removed, 3D model](docs/images/gnome.png)
@@ -16,17 +16,22 @@ It is for people with a 3D printer who want to turn a photo of a figurine, a toy
 
 ## What works and what is next
 
-The **command line** works: you give it a photo and get a folder with a closed STL, plus a report with the size and the approximate grams of PLA. The AI model is **TripoSG** (about 2 minutes per photo): it gives real detail and correct proportions. The faster but much rougher TripoSR was removed ([decision 007](docs/decisions/007-triposg-only.md), in Bulgarian). A **local HTTP server** (FastAPI) also works. The future app will talk to it: projects, a job queue, live progress over WebSocket, quick changes of height, base and rotation without running the AI model again, and STL export. **There is no windowed app yet.** Next comes an Electron app where you pick or drag a photo and see the model. The plan is in [docs/PLAN.md](docs/PLAN.md) (in Bulgarian).
+The **command line**, the **local HTTP server** (FastAPI) and the **windowed app** (Electron, `app/`) all work. You give it a photo and get a closed STL, plus a report with the size and the approximate grams of PLA. The AI model is **TripoSG** (about 2 minutes per photo): it gives real detail and correct proportions. The faster but much rougher TripoSR was removed ([decision 007](docs/decisions/007-triposg-only.md), in Bulgarian).
 
-## How it will work (planned)
+In the app you drop a photo, watch the progress, rotate the model in 3D, change height, base and rotation (without running the AI again), and save the STL or open it in a slicer. Details and what was checked: [app/README.md](app/README.md) (in Bulgarian) and [docs/phase-2-app.md](docs/phase-2-app.md). The plan is in [docs/PLAN.md](docs/PLAN.md) (in Bulgarian).
 
-> This is a plan, not something that exists. None of the list below is built yet, and the details of the website and the installer are still undecided.
+**Not done yet:** the app is not signed (macOS and Windows warn on the first start), there is no automatic GitHub release (the files are made with `scripts/build-release.sh`), and the Windows version has only been checked in GitHub Actions, not on a real computer.
 
-1. A small website with a "before / after" picture and a "Download for Mac" button.
-2. You download one file (`.dmg`) and open it like any Mac app.
-3. The first launch finishes the installation: it downloads the model (about 8 GB), with a progress bar.
-4. In the app you pick a photo file (or drag it in) and press "Create".
-5. The app makes the 3D version (STL), shows it and saves it in a folder next to the photo.
+## How to install
+
+The page in `site/` (locally: `python3 -m http.server 8791` in the `site/` folder, then http://localhost:8791) has a download button for Mac or Windows.
+
+1. You download a small installer (`.dmg` on Mac, `.zip` on Windows).
+2. You open it: a window with a status bar downloads the app, checks it (SHA-256) and installs it (Mac: `~/Applications`, Windows: `%LOCALAPPDATA%\Programs`).
+3. The same window then prepares the Python environment (PyTorch, about 1 GB on Mac, more on Windows with CUDA). The app brings its own `uv`, so nothing is installed by hand.
+4. On the first start the app downloads the model (about 7.9 GB), with Pause/Resume.
+
+The download files are built on a Mac with `scripts/build-release.sh [base-url]` into `site/downloads/` (not in git). The script also builds the Windows package from the Windows build of Electron.
 
 ## How to run it (macOS)
 
@@ -92,7 +97,7 @@ What is verified: 147 automated tests when the server was added (176 now) (with 
 
 The numbers come from [docs/benchmarks.md](docs/benchmarks.md), measured on a **MacBook Pro M1 Pro with 16 GB RAM**. Nothing else has been tried.
 
-- **Apple Silicon only.** One computer was tested. Windows, Intel Macs and NVIDIA are untested.
+- **Mainly Apple Silicon.** One computer was tested. Windows was only run on a GitHub Actions runner (installer, start and stop of the engine with the test model, no graphics card). Intel Macs, NVIDIA and TripoSG on Windows are untested.
 - **16 GB of memory is needed.** TripoSG peaks at about 7.5–9.5 GB. On a Mac with 8 GB it will probably not run (not tried).
 - **Slow and big:** about 2 minutes per photo and about 7.9 GB download. Tried on 4 photos (chair, watch, sofa, wooden figure). With `detailed`, a few small dots stay on flat areas after simplification.
 - **Small details:** the face of an 80 mm figure has its shape, but the features are blurred.
@@ -116,6 +121,7 @@ uv run ruff check .
 ## Documents
 
 - [docs/PLAN.md](docs/PLAN.md): the full plan and roadmap (Bulgarian)
+- [app/README.md](app/README.md): the windowed app, how to run it and what it has (Bulgarian)
 - [docs/phase-2-app.md](docs/phase-2-app.md): the detailed plan for the windowed app, Phase 2 (Bulgarian)
 - [docs/benchmarks.md](docs/benchmarks.md): measurements and findings (Bulgarian)
 - [docs/decisions/](docs/decisions/): short explanations of the key decisions (Bulgarian)
