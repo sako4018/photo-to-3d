@@ -14,7 +14,7 @@ function show(ids) {
 window.installer.onState((state) => {
   $('status').textContent = state.text
   $('status').className = 'status' + (state.phase === 'error' ? ' error' : '')
-  const busy = state.phase === 'connecting' || state.phase === 'installing' || state.phase === 'verifying'
+  const busy = ['connecting', 'installing', 'verifying', 'engine'].includes(state.phase)
   $('bar').className = 'bar' + (busy ? ' busy' : '')
   if (state.phase === 'downloading') {
     $('fill').style.width = `${Math.min(100, (state.done / state.total) * 100)}%`
@@ -24,8 +24,8 @@ window.installer.onState((state) => {
     $('fill').style.width = '100%'
     $('detail').textContent = state.target
     target = state.target
-  } else if (!busy) {
-    $('detail').textContent = ''
+  } else {
+    $('detail').textContent = state.detail || ''
   }
   if (state.phase === 'error' || state.phase === 'cancelled') { $('fill').style.width = '0'; show(['retry', 'quit']) }
   else if (state.phase === 'done') show(['open', 'quit'])

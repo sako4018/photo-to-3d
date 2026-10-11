@@ -43,8 +43,13 @@ jobs:
         run: uv run pytest -m "not slow"
 
   app:
-    name: app (lint, types, tests, build)
-    runs-on: ubuntu-latest
+    name: app on ${{ matrix.os }} (lint, types, tests, build)
+    # Windows is checked here because there is no Windows computer to try it on locally.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     defaults:
       run:
@@ -75,3 +80,7 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Check the installer scripts
+        working-directory: installer
+        run: node --check main.js && node --check preload.js && node --check renderer.js
