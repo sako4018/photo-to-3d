@@ -1,0 +1,116 @@
+name: Windows smoke test
+
+# Builds the downloads on a Mac runner, then runs the Windows installer and the installed app
+# on a real Windows runner. The pictures of the installer window are saved as an artifact.
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - installer/**
+      - scripts/build-release.sh
+      - engine/uv.lock
+      - app/src/main/launch.ts
+      - .github/workflows/windows-smoke.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: build downloads (Mac runner)
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - uses: astral-sh/setup-uv@v10.3.0
+
+      - name: Install app dependencies (with the Electron binary)
+        run: npm ci
+        working-directory: app
+
+      - name: Build the downloads
+        run: scripts/build-release.sh http://127.0.0.1:8791/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-downloads
+          path: |
+            site/downloads/latest.json
+            site/downloads/Photo-to-3D-app-win-x64.zip
+            site/downloads/Photo-to-3D-Installer-win-x64.zip
+          retention-days: 3
+
+  windows:
+    name: install and start on Windows
+    needs: build
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-downloads
+          path: serve
+
+      - name: Serve the downloads on port 8791
+        run: |
+          Start-Process python -ArgumentList '-m','http.server','8791','--bind','127.0.0.1','--directory','serve' -WindowStyle Hidden
+          Start-Sleep 3
+          (Invoke-WebRequest http://127.0.0.1:8791/latest.json).Content
+
+      - name: Run the installer window
+        run: |
+          Expand-Archive serve/Photo-to-3D-Installer-win-x64.zip -DestinationPath inst
+          New-Item -ItemType Directory shots, install | Out-Null
+          $env:P3D_AUTOSTART = '1'
+          $env:P3D_SHOT = "$PWD\shots"
+          $env:P3D_INSTALL_DIR = "$PWD\install"
+          $p = Start-Process "inst\photo-to-3d Installer\photo-to-3d Installer.exe" -PassThru
+          $deadline = (Get-Date).AddMinutes(40)
+          while ((Get-Date) -lt $deadline -and -not (Test-Path shots\done.png) -and -not (Test-Path shots\error.png)) {
+            Start-Sleep 5
+          }
+          $phases = (Get-ChildItem shots -Name) -join ', '
+          Write-Host "::notice title=Installer phases reached::$phases"
+          if (-not (Test-Path shots\done.png)) { Write-Host "::error::The installer did not reach 'done' (reached: $phases)"; exit 1 }
+          Get-ChildItem install -Name | ForEach-Object { Write-Host "::notice title=Installed::$_" }
+          Stop-Process $p -Force -ErrorAction SilentlyContinue
+
+      - name: Start the installed app and its engine
+        run: |
+          $env:PHOTO3D_ENGINE_ID = 'dummy'
+          $env:PHOTO3D_DATA_DIR = "$PWD\data"
+          $app = Start-Process "install\Photo to 3D\Photo to 3D.exe" -PassThru
+          $engine = $null
+          for ($i = 0; $i -lt 60 -and -not $engine; $i++) {
+            Start-Sleep 5
+            $engine = Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*photo3d_engine*' -and $_.Name -like 'python*' }
+          }
+          if (-not $engine) { Write-Host '::error::The engine did not start'; exit 1 }
+          Write-Host "::notice title=Engine started::$($engine.CommandLine)"
+          Stop-Process $app -Force
+          Start-Sleep 15
+          $left = Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*photo3d_engine*' -and $_.Name -like 'python*' }
+          if ($left) { Write-Host '::error::The engine kept running after the app was closed'; exit 1 }
+          Write-Host '::notice title=Engine stopped::The engine ended together with the app'
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: installer-window-pictures
+          path: shots
+          retention-days: 7
