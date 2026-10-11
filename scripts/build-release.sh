@@ -7,7 +7,7 @@
 # Usage: scripts/build-release.sh [base-url]   (default http://localhost:8791/downloads/)
 # The Windows files are made from the Windows build of Electron, so nothing is compiled here.
 # They are not signed: Windows SmartScreen will warn on the first start.
-set -euo pipefail
+set -Eeuo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BASE_URL="${1:-http://localhost:8791/downloads/}"
@@ -18,7 +18,7 @@ ELECTRON="$ROOT/app/node_modules/electron/dist/Electron.app"
 trap 'rm -rf "$WORK"' EXIT
 trap 'echo "::error::build-release.sh failed at line $LINENO: $BASH_COMMAND"' ERR
 
-[ -d "$ELECTRON" ] || { echo "Electron is missing: run npm install in app/"; exit 1; }
+[ -d "$ELECTRON" ] || { echo "::error::Electron is missing: run npm install in app/ (looked in $ELECTRON)"; exit 1; }
 VERSION="$(node -p "require('$ROOT/app/package.json').version")"
 ELECTRON_VERSION="$(node -p "require('$ROOT/app/node_modules/electron/package.json').version")"
 UV_VERSION="$(uv --version | cut -d' ' -f2)"
