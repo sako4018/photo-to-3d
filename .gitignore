@@ -14,3 +14,6 @@ out/
 spikes/
 *.ckpt
 *.safetensors
+
+# built by scripts/build-release.sh
+site/downloads/

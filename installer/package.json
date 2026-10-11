@@ -1,0 +1,8 @@
+{
+  "name": "photo-to-3d-installer",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Small installer window that downloads photo-to-3d with a progress bar.",
+  "license": "MIT",
+  "main": "main.js"
+}
