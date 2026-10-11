@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>photo-to-3d: from photo to 3D, ready to print</title>
+  <meta name="description" content="Turn one photo into a closed, print-ready STL model. Runs fully on your Mac, no cloud and no account.">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#02030a">
+  <script>document.documentElement.classList.add("js")</script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="bg" aria-hidden="true">
+    <canvas id="bg-canvas"></canvas>
+  </div>
+  <div class="progress" aria-hidden="true"><span></span></div>
+
+  <nav class="nav">
+    <a class="brand" href="#top"><span class="brand-mark"></span>photo-to-3d</a>
+    <div class="nav-links">
+      <a href="#how">How it works</a>
+      <a href="#compare">Compare</a>
+      <a href="#limits">Limits</a>
+    </div>
+    <a class="btn btn-small" data-download href="#download">Download</a>
+  </nav>
+
+  <header class="hero" id="top">
+    <div class="hero-text">
+      <p class="chip reveal"><span class="dot"></span> Runs offline on your Mac</p>
+      <h1 class="reveal"><span class="line">From photo to 3D</span><span class="line accent">ready to print</span></h1>
+      <p class="lead reveal">A closed STL in millimetres, ready for your slicer. No cloud, no account.</p>
+      <div class="cta reveal">
+        <a class="btn btn-big" data-download href="#download"><span class="btn-label">Download for Mac</span><span class="btn-sub">soon</span></a>
+        <a class="btn btn-ghost" href="#how">How it works</a>
+      </div>
+    </div>
+
+    <div class="hero-viewer reveal">
+      <div class="viewer-card glass">
+        <div class="viewer-top">
+          <span class="traffic"><i></i><i></i><i></i></span>
+          <span class="viewer-title" id="hero-title">model.stl</span>
+          <span class="viewer-state" id="viewer-state">ready</span>
+        </div>
+        <div class="viewer-stage" id="hero-stage">
+          <canvas id="hero-canvas" aria-label="Interactive 3D model. Drag to rotate."></canvas>
+          <div class="hud hud-tl" id="hud-dims"></div>
+          <div class="hud hud-tr" id="hud-layer">watertight ✓</div>
+          <div class="hud hud-bl">drag to rotate</div>
+        </div>
+        <div class="viewer-bar">
+          <div class="seg" role="group" aria-label="Display mode">
+            <button class="active" data-mode="solid">Solid</button>
+            <button data-mode="wire">Wire</button>
+            <button data-mode="layers">Layers</button>
+          </div>
+          <button class="replay" id="replay" type="button">▶ Layer preview</button>
+        </div>
+      </div>
+      <p class="small caption">A real result, simplified for the web.</p>
+    </div>
+  </header>
+
+  <section class="stats">
+    <div class="stat reveal"><b><span class="count" data-to="2" data-prefix="~">0</span> min</b><span>per photo</span></div>
+    <div class="stat reveal"><b><span class="count" data-to="0">0</span> bytes</b><span>uploaded</span></div>
+    <div class="stat reveal"><b><span class="count" data-to="16">0</span> GB</b><span>RAM recommended</span></div>
+  </section>
+
+  <section id="how" class="section">
+    <p class="eyebrow reveal">How it works</p>
+    <h2 class="reveal" data-parallax="0.05">Three steps</h2>
+    <div class="steps">
+      <article class="step" data-scroll-step>
+        <div class="step-media scan">
+          <img src="assets/steps-photo.jpg" alt="Photo of a garden gnome" loading="lazy">
+          <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <span class="scanline"></span>
+        </div>
+        <div class="step-body"><span class="step-n">01</span><h3>Photo</h3><p>Start with one picture.</p></div>
+      </article>
+      <div class="step-arrow" aria-hidden="true"><span></span></div>
+      <article class="step" data-scroll-step>
+        <div class="step-media checker">
+          <img class="cutout" src="assets/steps-cutout.png" alt="The figure with the background removed" loading="lazy">
+        </div>
+        <div class="step-body"><span class="step-n">02</span><h3>Cut out</h3><p>The background disappears.</p></div>
+      </article>
+      <div class="step-arrow" aria-hidden="true"><span></span></div>
+      <article class="step" data-scroll-step>
+        <div class="step-media mesh">
+          <canvas id="mini-canvas" aria-label="Rotating wireframe of the 3D model"></canvas>
+        </div>
+        <div class="step-body"><span class="step-n">03</span><h3>3D model</h3><p>Get a file ready to print.</p></div>
+      </article>
+    </div>
+  </section>
+
+  <section id="features" class="section">
+    <div class="bento">
+      <article class="card reveal wide">
+        <h3>Print-ready</h3>
+        <p>Size, volume and grams of PLA in one report.</p>
+        <pre class="term" id="term" aria-label="Example report"><code></code></pre>
+      </article>
+      <article class="card reveal"><h3>Private</h3><p>Photos never leave your Mac.</p></article>
+      <article class="card reveal"><h3>Quick tweaks</h3><p>Height, base and rotation without a new run.</p></article>
+    </div>
+  </section>
+
+  <section id="compare" class="section">
+    <p class="eyebrow reveal">First version and now</p>
+    <h2 class="reveal" data-parallax="0.05">Same photo, better model</h2>
+    <div class="versions">
+      <figure class="version" data-scroll-step data-shift="-1">
+        <div class="version-stage"><canvas id="v1-canvas" aria-label="Sofa from the first version. Drag to rotate."></canvas></div>
+        <figcaption><b>First version</b><span>Fast, but rough.</span></figcaption>
+      </figure>
+      <figure class="version current" data-scroll-step data-shift="1">
+        <div class="version-stage"><canvas id="v2-canvas" aria-label="Sofa from the current version. Drag to rotate."></canvas></div>
+        <figcaption><b>Now</b><span>Real detail, true proportions.</span></figcaption>
+      </figure>
+    </div>
+    <p class="small reveal">Drag to turn both. Same photo for both models.</p>
+  </section>
+
+  <section id="limits" class="section">
+    <p class="eyebrow reveal">Good to know</p>
+    <div class="limits">
+      <div class="limit reveal"><b>Apple Silicon only</b><span>Tested on one M1 Pro.</span></div>
+      <div class="limit reveal"><b>16 GB memory</b><span>8 GB will likely not work.</span></div>
+      <div class="limit reveal"><b>Soft small details</b><span>Faces on tiny figures blur.</span></div>
+      <div class="limit reveal"><b>Not printed yet</b><span>Closed and sized, but untested on a printer.</span></div>
+    </div>
+  </section>
+
+  <section id="download" class="section cta-final reveal">
+    <h2>Download</h2>
+    <a class="btn btn-big" data-download href="https://github.com/sako4018/photo-to-3d/releases"><span class="btn-label">Download for Mac</span><span class="btn-sub">soon</span></a>
+    <p class="small">Apple Silicon Macs. 7.9 GB model downloads on first launch.</p>
+  </section>
+
+  <footer>
+    <p>
+      <a href="https://github.com/sako4018/photo-to-3d">Source code on GitHub</a> ·
+      <a href="https://github.com/sako4018/photo-to-3d/releases">Releases</a> · MIT
+    </p>
+  </footer>
+
+  <script src="vendor/three.min.js"></script>
+  <script src="bg.js"></script>
+  <script src="app.js"></script>
+  <script src="download.js"></script>
+</body>
+</html>
