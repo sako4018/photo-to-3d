@@ -16,6 +16,7 @@ WORK="$(mktemp -d)"
 CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/photo-to-3d-build"
 ELECTRON="$ROOT/app/node_modules/electron/dist/Electron.app"
 trap 'rm -rf "$WORK"' EXIT
+trap 'echo "::error::build-release.sh failed at line $LINENO: $BASH_COMMAND"' ERR
 
 [ -d "$ELECTRON" ] || { echo "Electron is missing: run npm install in app/"; exit 1; }
 VERSION="$(node -p "require('$ROOT/app/package.json').version")"
