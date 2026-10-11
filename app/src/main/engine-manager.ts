@@ -177,8 +177,10 @@ export class EngineManager {
   private signal(child: ChildProcess, signal: NodeJS.Signals): void {
     if (child.pid === undefined) return
     try {
-      if (process.platform === 'win32') child.kill(signal)
-      else process.kill(-child.pid, signal) // the whole group
+      if (process.platform === 'win32') {
+        // "uv run" starts Python as a child: stop the whole tree, not only uv
+        spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'])
+      } else process.kill(-child.pid, signal) // the whole group
     } catch {
       // already gone
     }

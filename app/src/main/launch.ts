@@ -6,9 +6,25 @@ import { app } from 'electron'
 import { engineArgs } from './engine-args'
 import type { EngineLaunch } from './engine-manager'
 
+const UV_NAME = process.platform === 'win32' ? 'uv.exe' : 'uv'
+
+/** The uv that the installer put next to the app (resources/bin), or null in development. */
+function bundledUv(): string | null {
+  const path = join(process.resourcesPath, 'bin', UV_NAME)
+  return app.isPackaged && existsSync(path) ? path : null
+}
+
+/** Where the installed app keeps its Python environment (the installer prepares the same folder). */
+export function engineEnvDir(): string {
+  return join(app.getPath('userData'), 'engine-env')
+}
+
 /** GUI apps do not get the shell PATH, so look in the usual places for uv too. */
 function findUv(): string {
   if (process.env.PHOTO3D_UV) return process.env.PHOTO3D_UV
+  const bundled = bundledUv()
+  if (bundled) return bundled
+  if (process.platform === 'win32') return 'uv'
   const candidates = [
     join(homedir(), '.local', 'bin', 'uv'),
     '/opt/homebrew/bin/uv',
@@ -23,7 +39,8 @@ export function dataDir(): string {
 }
 
 /**
- * Development launch: "uv run" in engine/. The packaged app (embedded uv) is Phase 5.
+ * "uv run" in engine/. The installed app uses its own uv, keeps the Python environment in the
+ * user's data folder (the app folder may be replaced or read-only) and never changes uv.lock.
  * PHOTO3D_ENGINE_ID=dummy starts the small test engine instead of TripoSG.
  */
 export function engineLaunch(): EngineLaunch {
@@ -31,6 +48,9 @@ export function engineLaunch(): EngineLaunch {
   return {
     command: findUv(),
     args: engineArgs(token, dataDir(), process.env.PHOTO3D_ENGINE_ID),
-    cwd: resolve(app.getAppPath(), '..', 'engine')
+    cwd: resolve(app.getAppPath(), '..', 'engine'),
+    env: app.isPackaged
+      ? { UV_PROJECT_ENVIRONMENT: engineEnvDir(), UV_FROZEN: '1', UV_NO_DEV: '1' }
+      : undefined
   }
 }
