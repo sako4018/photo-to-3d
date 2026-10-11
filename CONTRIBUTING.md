@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for looking. The project is small and still early: only the command line works, the app with a window comes next (see [docs/PLAN.md](docs/PLAN.md), in Bulgarian).
+Thanks for looking. The project is small and still early: the command line, the local server and the windowed app (`app/`) work on a Mac; a Windows version exists but has only been run in CI (see [docs/PLAN.md](docs/PLAN.md), in Bulgarian).
 
 ## Set up
 
@@ -23,6 +23,16 @@ uv run ruff format --check --config pyproject.toml . ../scripts
 ```
 
 All of these must pass before a change is merged. The CI runs the first, third and fourth.
+
+For the app (`app/`, needs Node 24):
+
+```bash
+cd app
+npm ci
+npm run lint && npm run typecheck && npm test && npm run build
+```
+
+The CI runs these on Linux and Windows. A separate workflow (`windows-smoke.yml`) builds the downloads, runs the Windows installer and starts the installed app on a Windows runner when the installer, `scripts/build-release.sh` or `engine/uv.lock` change. The downloads are built locally with `scripts/build-release.sh` (Mac only).
 
 ## Making changes
 
