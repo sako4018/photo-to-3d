@@ -26,7 +26,7 @@ In the app you drop a photo, watch the progress, rotate the model in 3D, change 
 
 The page in `site/` (locally: `python3 -m http.server 8791` in the `site/` folder, then http://localhost:8791) has a download button for Mac or Windows.
 
-1. You download a small installer (`.dmg` on Mac, `.zip` on Windows).
+1. You download one file: a `.dmg` installer on Mac or an `.exe` on Windows (self-extracting, nothing to unzip).
 2. You open it: a window with a status bar downloads the app, checks it (SHA-256) and installs it (Mac: `~/Applications`, Windows: `%LOCALAPPDATA%\Programs`).
 3. The same window then prepares the Python environment (PyTorch, about 1 GB on Mac, more on Windows with CUDA). The app brings its own `uv`, so nothing is installed by hand.
 4. On the first start the app downloads the model (about 7.9 GB), with Pause/Resume.

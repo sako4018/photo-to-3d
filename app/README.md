@@ -45,7 +45,7 @@ npm run dev
 - изпълнимият файл трябва да се казва различно от `Electron`, иначе `app.isPackaged` е `false` и приложението ползва `uv` от системата;
 - на Windows спира engine-а с `taskkill /T /F`, за да умре и Python процесът, който `uv run` пуска.
 
-Инсталаторът (`installer/`) сваля пакета от `latest.json`, проверява SHA-256, инсталира го и подготвя Python средата със статус лента. За проба: `P3D_BASE_URL`, `P3D_INSTALL_DIR`, `P3D_AUTOSTART=1` и `P3D_SHOT=/папка` (снимки на прозореца).
+На Windows инсталаторът е един файл `Photo-to-3D-Setup-win-x64.exe`: 7-Zip SFX (`7zSD.sfx`), който се разархивира във временна папка, пуска прозореца и после я трие. Инсталаторът (`installer/`) сваля пакета от `latest.json`, проверява SHA-256, инсталира го и подготвя Python средата със статус лента. За проба: `P3D_BASE_URL`, `P3D_INSTALL_DIR`, `P3D_AUTOSTART=1` и `P3D_SHOT=/папка` (снимки на прозореца).
 
 Проверено: целият поток на Mac и на Windows runner в GitHub Actions (с тестовия engine). Не е проверено на истински Windows компютър и с TripoSG на Windows. Пакетите не са подписани.
 
