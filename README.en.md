@@ -24,7 +24,7 @@ In the app you drop a photo, watch the progress, rotate the model in 3D, change 
 
 ## How to install
 
-The page in `site/` (locally: `python3 -m http.server 8791` in the `site/` folder, then http://localhost:8791) has a download button for Mac or Windows.
+The page in `site/` (locally: `python3 -m http.server 8791` in the `site/` folder, then http://localhost:8791) has two download buttons: one for Mac and one for Windows.
 
 1. You download one file: a `.dmg` installer on Mac or an `.exe` on Windows (self-extracting, nothing to unzip).
 2. You open it: a window with a status bar downloads the app, checks it (SHA-256) and installs it (Mac: `~/Applications`, Windows: `%LOCALAPPDATA%\Programs`).
@@ -103,7 +103,7 @@ The numbers come from [docs/benchmarks.md](docs/benchmarks.md), measured on a **
 - **Small details:** the face of an 80 mm figure has its shape, but the features are blurred.
 - **Small contact area with the bed.** When an object stands on thin tips, the flat base is small. The report warns about it, and `--plate 2` adds a plate (on the TripoSR chair the contact went from 6.4 to 942.8 mm²).
 - **TripoSG is our own rewrite.** Its original code contains parts under Tencent licences that exclude the EU, so the networks were rewritten for the MIT weights (decision 006). The numbers match the original, but the legal side has not been checked by a lawyer.
-- **Nothing has been printed.** The STL files open in Bambu Studio, but slicing and printing have not been checked yet. Validity (closed, correct size in mm) was checked with the trimesh library.
+- **Nothing has been printed.** The STL files open and slice in Bambu Studio, but there has been no real print yet. Validity (closed, correct size in mm) was checked with the trimesh library.
 - **Few test photos.** 7 in total: 5 clean renders and 2 real photos of public-domain objects. Bad photos (hard shadows, reflections, transparent objects) have not been tried.
 - **The gram estimate is rough**, not a slicer result.
 - **Timings (M1 Pro, MPS):** "normal" about 2 min 15 s in total (about 107 s generating and about 25 s loading), "fast" about 80 s, "detailed" about 4 min. Not measured on the CPU.
