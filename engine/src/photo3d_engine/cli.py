@@ -11,6 +11,7 @@ from .engines.registry import DEFAULT_ENGINE, engine_ids, get_engine
 from .layout import plan_outputs, save_original
 from .make import MakeResult, make_stl
 from .platform.devices import VALID_DEVICES
+from .preprocess.background import prefetch_model
 from .print_prep.pipeline import QUALITY_PRESETS
 
 
@@ -122,6 +123,10 @@ def run_make(args: argparse.Namespace) -> int:
 
 def run_install(args: argparse.Namespace) -> int:
     engine = get_engine(args.engine)
+    # the small background model would otherwise be fetched at the first photo (needs internet)
+    if engine.download_gb:
+        print("Preparing the background removal model (about 176 MB)...")
+        prefetch_model()
     if engine.is_installed():
         print(f"{engine.name} is already downloaded.")
         return 0

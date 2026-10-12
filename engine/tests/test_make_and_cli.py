@@ -118,3 +118,27 @@ def test_cli_rejects_unknown_quality():
 def test_cli_install_is_a_noop_for_the_dummy_engine(capsys):
     assert main(["install", "--engine", "dummy"]) == 0
     assert "already downloaded" in capsys.readouterr().out
+
+
+class _InstalledModel:
+    name = "Fake"
+    download_gb = 1.0
+
+    def is_installed(self):
+        return True
+
+
+def test_cli_install_also_prepares_the_background_model(monkeypatch, capsys):
+    calls = []
+    monkeypatch.setattr("photo3d_engine.cli.get_engine", lambda engine_id: _InstalledModel())
+    monkeypatch.setattr("photo3d_engine.cli.prefetch_model", lambda: calls.append("prefetch"))
+    assert main(["install"]) == 0
+    assert calls == ["prefetch"]  # even when the main model is already there
+    assert "already downloaded" in capsys.readouterr().out
+
+
+def test_cli_install_does_not_fetch_it_for_the_dummy_engine(monkeypatch):
+    calls = []
+    monkeypatch.setattr("photo3d_engine.cli.prefetch_model", lambda: calls.append("prefetch"))
+    assert main(["install", "--engine", "dummy"]) == 0
+    assert calls == []

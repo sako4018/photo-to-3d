@@ -31,6 +31,14 @@ def remove_background(image: Image.Image) -> Image.Image:
     return remove(image.convert("RGB"), session=_session).convert("RGBA")
 
 
+def prefetch_model() -> None:
+    """Download the background model now (about 176 MB), so the first photo also works offline."""
+    from rembg import new_session
+
+    new_session("u2net", providers=["CPUExecutionProvider"])
+    gc.collect()
+
+
 def release_session() -> None:
     """Free the background model's memory (it is needed before the 3D model, not during)."""
     global _session
