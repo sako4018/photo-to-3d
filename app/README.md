@@ -45,9 +45,9 @@ npm run dev
 - изпълнимият файл трябва да се казва различно от `Electron`, иначе `app.isPackaged` е `false` и приложението ползва `uv` от системата;
 - на Windows спира engine-а с `taskkill /T /F`, за да умре и Python процесът, който `uv run` пуска.
 
-На Windows инсталаторът е един файл `Photo-to-3D-Setup-win-x64.exe`: 7-Zip SFX (`7zSD.sfx`), който се разархивира във временна папка, пуска прозореца и после я трие. Инсталаторът (`installer/`) сваля пакета от `latest.json`, проверява SHA-256, инсталира го и подготвя Python средата със статус лента. За проба: `P3D_BASE_URL`, `P3D_INSTALL_DIR`, `P3D_AUTOSTART=1` и `P3D_SHOT=/папка` (снимки на прозореца).
+На Windows инсталаторът е един файл `Photo-to-3D-Setup-win-x64.exe`: 7-Zip SFX (`7zSD.sfx`), който се разархивира във временна папка, пуска прозореца и после я трие. Инсталаторът (`installer/`) на Windows проверява системата и видеокартата и инсталира Visual C++ runtime, ако липсва (подпис на Microsoft, администраторско разрешение). После сваля пакета от `latest.json`, проверява SHA-256, инсталира го, подготвя Python средата, проверява, че тя стартира (`import torch…`), и сваля AI модела и малкия модел за фона (`photo3d install`). Сваляне без данни за 1 минута се спира. Всичко се пише в `installer.log` в папката на данните. За проба: `P3D_BASE_URL`, `P3D_INSTALL_DIR`, `P3D_APPDATA` (папка на данните), `P3D_AUTOSTART=1`, `P3D_SHOT=/папка` (снимки на прозореца), `P3D_SKIP_MODEL=1` (без свалянето на модела) и `P3D_FORCE_VCREDIST=1` (опитай стъпката за Visual C++ и когато вече го има). Помощните функции са в `installer/steps.js` с тестове (`node --test` в `installer/`).
 
-Проверено: целият поток на Mac и на Windows runner в GitHub Actions (с тестовия engine). Не е проверено на истински Windows компютър и с TripoSG на Windows. Пакетите не са подписани.
+Проверено: целият поток на Mac и на Windows runner в GitHub Actions (с потребителска папка на кирилица и тестовия engine, без свалянето на модела). Не е проверено на истински Windows компютър, с NVIDIA, със свалянето на пълния модел през инсталатора на Windows и с TripoSG на Windows. Ръчен тест с модела: `gh workflow run windows-smoke.yml -f real_model=true`. Пакетите не са подписани.
 
 ## Команди
 
