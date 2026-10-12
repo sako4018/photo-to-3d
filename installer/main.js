@@ -266,7 +266,7 @@ async function install() {
     const began = Date.now()
     await run(uv, ['sync', '--frozen', '--no-dev'], {
       cwd: path.join(resources, 'engine'),
-      env: { UV_PROJECT_ENVIRONMENT: engineEnv(), UV_HTTP_TIMEOUT: '120', NO_COLOR: '1' },
+      env: { UV_PROJECT_ENVIRONMENT: engineEnv(), PYTHONUTF8: '1', UV_HTTP_TIMEOUT: '120', NO_COLOR: '1' },
       onLine: (line) => {
         const minutes = Math.floor((Date.now() - began) / 60000)
         send({ phase: 'engine', text: 'Preparing the engine (PyTorch, first time only)…', detail: `${minutes} min · ${line}`.slice(0, 90) })
@@ -280,9 +280,9 @@ async function install() {
     send({ phase: 'engine', text: 'Checking the engine…', detail: '' })
     const probe = await outputOf(uv, ['run', '--frozen', '--no-dev', 'python', '-c', PROBE], {
       cwd: path.join(resources, 'engine'),
-      env: { UV_PROJECT_ENVIRONMENT: engineEnv(), NO_COLOR: '1' }
+      env: { UV_PROJECT_ENVIRONMENT: engineEnv(), PYTHONUTF8: '1', NO_COLOR: '1' }
     })
-    log(`engine check: ${probe.trim().split('\n').slice(-3).join(' | ')}`)
+    log(`engine check: ${probe.trim().split(/\r?\n/).slice(-15).join(' | ')}`)
     const cuda = /cuda=(True|False)/.exec(probe)
     if (!cuda) {
       throw new Error(`The engine was installed but does not start. Send the log file: ${logFile}`)
@@ -301,7 +301,7 @@ async function install() {
       send({ phase: 'model', text: 'Downloading the AI model (about 7.9 GB, first time only)…', percent: 0 })
       await run(uv, ['run', '--frozen', '--no-dev', 'photo3d', 'install'], {
         cwd: path.join(resources, 'engine'),
-        env: { UV_PROJECT_ENVIRONMENT: engineEnv(), PHOTO3D_MODELS_DIR: modelsDir(), NO_COLOR: '1', PYTHONIOENCODING: 'utf-8' },
+        env: { UV_PROJECT_ENVIRONMENT: engineEnv(), PYTHONUTF8: '1', PHOTO3D_MODELS_DIR: modelsDir(), NO_COLOR: '1', PYTHONIOENCODING: 'utf-8' },
         onLine: (line) => {
           const percent = steps.percentOf(line)
           if (percent !== null) send({ phase: 'model', text: 'Downloading the AI model (about 7.9 GB, first time only)…', percent })

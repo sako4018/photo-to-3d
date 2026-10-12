@@ -50,7 +50,9 @@ export function engineLaunch(): EngineLaunch {
     args: engineArgs(token, dataDir(), process.env.PHOTO3D_ENGINE_ID),
     cwd: resolve(app.getAppPath(), '..', 'engine'),
     env: app.isPackaged
-      ? { UV_PROJECT_ENVIRONMENT: engineEnvDir(), UV_FROZEN: '1', UV_NO_DEV: '1' }
+      ? // PYTHONUTF8: Python on Windows reads uv's .pth file (the engine path) in the system code
+        // page otherwise, which breaks when the user name has Cyrillic letters
+        { UV_PROJECT_ENVIRONMENT: engineEnvDir(), UV_FROZEN: '1', UV_NO_DEV: '1', PYTHONUTF8: '1' }
       : undefined
   }
 }
