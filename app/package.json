@@ -1,6 +1,6 @@
 {
   "name": "photo-to-3d-app",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "private": true,
   "description": "Turn one photo into a print-ready 3D model. Desktop app for photo-to-3d.",
   "license": "MIT",
