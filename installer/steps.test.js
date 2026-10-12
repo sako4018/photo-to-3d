@@ -6,6 +6,7 @@ const {
   describeGpu,
   percentOf,
   windowsMajor,
+  signedByMicrosoft,
   VC_RUNTIME_FILES,
   VC_OK_CODES
 } = require('./steps')
@@ -83,4 +84,18 @@ test('Windows 10 and 11 report major version 10', () => {
   assert.equal(windowsMajor('10.0.22631'), 10)
   assert.equal(windowsMajor('6.1.7601'), 6)
   assert.equal(windowsMajor(''), 0)
+})
+
+test('a valid Microsoft signature is accepted', () => {
+  const out = 'STATUS=Valid\r\nSUBJECT=CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US\r\n'
+  assert.equal(signedByMicrosoft(out), true)
+})
+
+test('an unsigned, broken or foreign file is refused', () => {
+  assert.equal(signedByMicrosoft('STATUS=NotSigned\nSUBJECT='), false)
+  assert.equal(signedByMicrosoft('STATUS=HashMismatch\nSUBJECT=CN=Microsoft Corporation, O=Microsoft Corporation'), false)
+  assert.equal(signedByMicrosoft('STATUS=Valid\nSUBJECT=CN=Someone Else, O=Someone Else'), false)
+  // PowerShell could not even load the command: no STATUS line at all
+  assert.equal(signedByMicrosoft("Get-AuthenticodeSignature : The 'Get-AuthenticodeSignature' command was found in the module"), false)
+  assert.equal(signedByMicrosoft(''), false)
 })

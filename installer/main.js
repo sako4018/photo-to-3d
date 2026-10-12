@@ -134,11 +134,11 @@ async function downloadFile(url, dest, signal, { text, size }) {
 }
 
 /** Output of a short command, or '' when it is missing or fails. */
-function outputOf(command, args, { cwd, env } = {}) {
+function outputOf(command, args, { cwd, env, exactEnv } = {}) {
   return new Promise((resolve) => {
     let text = ''
     try {
-      const proc = spawn(command, args, { cwd, env: { ...process.env, ...env }, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true })
+      const proc = spawn(command, args, { cwd, env: exactEnv || { ...process.env, ...env }, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true })
       proc.stderr.on('data', (chunk) => { text += chunk })
       proc.stdout.on('data', (chunk) => { text += chunk })
       proc.on('error', () => resolve(''))
@@ -146,6 +146,17 @@ function outputOf(command, args, { cwd, env } = {}) {
     } catch { resolve('') }
   })
 }
+
+/** Runs a Windows PowerShell 5.1 script (part of every Windows 10 and 11) and returns what it printed. */
+function powershell(script) {
+  const exe = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
+  // A PowerShell 7 that started us leaves its own module folders in PSModulePath, and 5.1 then
+  // cannot load Get-AuthenticodeSignature or Start-Process. Without the variable it uses its own.
+  const env = { ...process.env }
+  for (const key of Object.keys(env)) if (key.toLowerCase() === 'psmodulepath') delete env[key]
+  return outputOf(exe, ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', script], { exactEnv: env })
+}
+const quotePs = (text) => `'${text.replace(/'/g, "''")}'`
 
 /** Windows only: look at the system, say what the graphics card is, and install what is missing. */
 async function prepareWindows(work, signal) {
@@ -170,22 +181,22 @@ async function prepareWindows(work, signal) {
     const installer = path.join(work, 'vc_redist.x64.exe')
     await downloadFile(VC_REDIST_URL, installer, signal, { text: 'Downloading the Microsoft Visual C++ runtime…', size: 0 })
     // never run a file that Microsoft did not sign
-    const check = await outputOf('powershell', [
-      '-NoProfile', '-NonInteractive', '-Command',
-      `$s = Get-AuthenticodeSignature -LiteralPath '${installer.replace(/'/g, "''")}'; ` +
-        `if ($s.Status -eq 'Valid' -and $s.SignerCertificate.Subject -like '*O=Microsoft Corporation*') { 'SIGNED' } else { 'BAD ' + $s.Status }`
-    ])
-    log(`signature of vc_redist.x64.exe: ${check.trim()}`)
-    if (!check.includes('SIGNED')) {
+    const check = await powershell(
+      `$s = Get-AuthenticodeSignature -LiteralPath ${quotePs(installer)}; 'STATUS=' + $s.Status; 'SUBJECT=' + $s.SignerCertificate.Subject`
+    )
+    log(`signature of vc_redist.x64.exe: ${check.trim().replace(/\s*\r?\n\s*/g, ' | ')}`)
+    if (!check.includes('STATUS=')) {
+      throw new Error(`Windows could not check the Microsoft Visual C++ runtime file. Send the log file: ${logFile}`)
+    }
+    if (!steps.signedByMicrosoft(check)) {
       throw new Error('The Microsoft Visual C++ runtime file is not signed by Microsoft. It was not started. Try again later.')
     }
     send({ phase: 'runtime', text: 'Installing the Microsoft Visual C++ runtime…', detail: 'Windows asks for permission once.' })
-    const exit = await outputOf('powershell', [
-      '-NoProfile', '-NonInteractive', '-Command',
-      `try { $p = Start-Process -FilePath '${installer.replace(/'/g, "''")}' -ArgumentList '/install','/quiet','/norestart' -Verb RunAs -Wait -PassThru; $p.ExitCode } catch { 'DENIED' }`
-    ])
+    const exit = await powershell(
+      `try { $p = Start-Process -FilePath ${quotePs(installer)} -ArgumentList '/install','/quiet','/norestart' -Verb RunAs -Wait -PassThru; $p.ExitCode } catch { 'DENIED' }`
+    )
     log(`vc_redist exit: ${exit.trim()}`)
-    const code = Number(exit.trim())
+    const code = Number(exit.trim().split(/\r?\n/).pop())
     if (exit.includes('DENIED') || Number.isNaN(code)) {
       throw new Error('The Microsoft Visual C++ runtime needs administrator permission. Press "Try again" and allow it.')
     }

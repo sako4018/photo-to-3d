@@ -62,6 +62,12 @@ function percentOf(line) {
   return found ? Math.min(100, Number(found[1])) : null
 }
 
+/** True when PowerShell printed "Valid" and a Microsoft subject (see SIGNATURE_SCRIPT in main.js). */
+function signedByMicrosoft(text) {
+  const lines = String(text).split(/\r?\n/).map((line) => line.trim())
+  return lines.includes('STATUS=Valid') && lines.some((line) => line.startsWith('SUBJECT=') && line.includes('O=Microsoft Corporation'))
+}
+
 /** Windows major version from os.release() ("10.0.19045" -> 10). Windows 7/8 are 6.x. */
 function windowsMajor(release) {
   return Number(String(release).split('.')[0]) || 0
@@ -75,5 +81,6 @@ module.exports = {
   parseNvidiaSmi,
   describeGpu,
   percentOf,
+  signedByMicrosoft,
   windowsMajor
 }
