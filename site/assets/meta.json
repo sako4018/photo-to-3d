@@ -1,19 +1,21 @@
 {
   "hero": {
-    "bin": "assets/hero.bin",
-    "name": "sofa_50mm.stl",
-    "size": "221.06 × 114.36 × 50.0",
-    "pla": "~191.3 g at 15% infill",
-    "contact": "1191.4 mm2",
-    "time": "~2.7 min",
-    "ram": "3.69 GB"
+    "bin": "assets/scarecrow.bin",
+    "name": "scarecrow_120mm.stl",
+    "height": 120,
+    "quality": "detailed",
+    "size": "113.54 × 76.97 × 120.0",
+    "pla": "~53.6 g at 15% infill",
+    "contact": "2588.1 mm2",
+    "time": "~3.8 min",
+    "ram": ""
   },
   "v1": {
-    "bin": "assets/sofa-v1.bin",
+    "bin": "assets/compare-fast.bin",
     "yaw": 0.0
   },
   "v2": {
-    "bin": "assets/sofa-v2.bin",
-    "yaw": 3.14159
+    "bin": "assets/scarecrow.bin",
+    "yaw": 0.0
   }
 }

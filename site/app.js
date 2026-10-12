@@ -8,10 +8,10 @@
 
   // ---------- model data (assets/meta.json), with safe defaults ----------
   var META = {
-    hero: { bin: "assets/hero.bin", name: "model_50mm.stl", size: "", pla: "", contact: "", time: "~2 min", ram: "" },
+    hero: { bin: "assets/scarecrow.bin", name: "model_120mm.stl", height: 120, size: "", pla: "", contact: "", time: "~2 min", ram: "" },
     steps: { bin: "assets/steps.bin" },
-    v1: { bin: "assets/sofa-v1.bin" },
-    v2: { bin: "assets/sofa-v2.bin" }
+    v1: { bin: "assets/compare-fast.bin" },
+    v2: { bin: "assets/scarecrow.bin" }
   };
 
   // ---------- reveal on scroll (with stagger inside a group) ----------
@@ -137,13 +137,13 @@
   var term = document.querySelector("#term code");
   function reportLines(m) {
     return [
-      '<span class="p">$</span> photo3d make ' + m.name.replace(/_\d+mm\.stl$/, "") + '.png --height 50',
+      '<span class="p">$</span> photo3d make ' + m.name.replace(/_\d+mm\.stl$/, "") + '.png --height ' + m.height + (m.quality ? ' --quality ' + m.quality : ''),
       '<span class="k">engine     :</span> triposg on mps',
       '<span class="k">watertight :</span> <span class="ok">yes</span>   <span class="k">parts :</span> 1',
       '<span class="k">size       :</span> <span class="hl">' + m.size + '</span> mm',
       '<span class="k">PLA (est.) :</span> ' + m.pla,
       '<span class="k">bed contact:</span> ' + m.contact,
-      '<span class="k">time       :</span> ' + m.time + '   <span class="k">peak RAM :</span> ' + m.ram,
+      '<span class="k">time       :</span> ' + m.time + (m.ram ? '   <span class="k">peak RAM :</span> ' + m.ram : ''),
       '<span class="ok">done</span> <span class="k">out/' + m.name.replace(/_\d+mm\.stl$/, "") + '/' + m.name + '</span>'
     ];
   }
