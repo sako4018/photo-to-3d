@@ -25,6 +25,17 @@ const launcherOf = (target) => (isWin ? path.join(target, 'Photo to 3D.exe') : t
 const engineEnv = () => path.join(appData(), 'photo-to-3d-app', 'engine-env')
 // ... and the downloaded model here (the app starts its engine with --data-dir = userData/data)
 const modelsDir = () => path.join(appData(), 'photo-to-3d-app', 'data', 'models')
+// Settings for every uv call, the same as the app uses (see engineLaunch in app/src/main/launch.ts):
+// uv's own Python (not one that happens to be on the computer), the engine copied into the environment
+// instead of linked by a .pth file (Python 3.11 on Windows cannot read a Cyrillic path in it) and UTF-8.
+const uvEnv = (extra = {}) => ({
+  UV_PROJECT_ENVIRONMENT: engineEnv(),
+  UV_PYTHON_PREFERENCE: 'only-managed',
+  UV_NO_EDITABLE: '1',
+  PYTHONUTF8: '1',
+  NO_COLOR: '1',
+  ...extra
+})
 // short Python check: the packages that need system libraries, and whether the graphics card is seen
 const PROBE = 'import torch, trimesh, rembg, manifold3d, fast_simplification; print("cuda=" + str(torch.cuda.is_available()))'
 
@@ -264,9 +275,10 @@ async function install() {
     const resources = resourcesOf(target)
     const uv = path.join(resources, 'bin', isWin ? 'uv.exe' : 'uv')
     const began = Date.now()
-    await run(uv, ['sync', '--frozen', '--no-dev'], {
+    // --reinstall-package: a new version of the app brings new engine code with the same version number
+    await run(uv, ['sync', '--frozen', '--no-dev', '--no-editable', '--reinstall-package', 'photo3d-engine'], {
       cwd: path.join(resources, 'engine'),
-      env: { UV_PROJECT_ENVIRONMENT: engineEnv(), PYTHONUTF8: '1', UV_HTTP_TIMEOUT: '120', NO_COLOR: '1' },
+      env: uvEnv({ UV_HTTP_TIMEOUT: '120' }),
       onLine: (line) => {
         const minutes = Math.floor((Date.now() - began) / 60000)
         send({ phase: 'engine', text: 'Preparing the engine (PyTorch, first time only)…', detail: `${minutes} min · ${line}`.slice(0, 90) })
@@ -280,7 +292,7 @@ async function install() {
     send({ phase: 'engine', text: 'Checking the engine…', detail: '' })
     const probe = await outputOf(uv, ['run', '--frozen', '--no-dev', 'python', '-c', PROBE], {
       cwd: path.join(resources, 'engine'),
-      env: { UV_PROJECT_ENVIRONMENT: engineEnv(), PYTHONUTF8: '1', NO_COLOR: '1' }
+      env: uvEnv()
     })
     log(`engine check: ${probe.trim().split(/\r?\n/).slice(-15).join(' | ')}`)
     const cuda = /cuda=(True|False)/.exec(probe)
@@ -301,7 +313,7 @@ async function install() {
       send({ phase: 'model', text: 'Downloading the AI model (about 7.9 GB, first time only)…', percent: 0 })
       await run(uv, ['run', '--frozen', '--no-dev', 'photo3d', 'install'], {
         cwd: path.join(resources, 'engine'),
-        env: { UV_PROJECT_ENVIRONMENT: engineEnv(), PYTHONUTF8: '1', PHOTO3D_MODELS_DIR: modelsDir(), NO_COLOR: '1', PYTHONIOENCODING: 'utf-8' },
+        env: uvEnv({ PHOTO3D_MODELS_DIR: modelsDir() }),
         onLine: (line) => {
           const percent = steps.percentOf(line)
           if (percent !== null) send({ phase: 'model', text: 'Downloading the AI model (about 7.9 GB, first time only)…', percent })

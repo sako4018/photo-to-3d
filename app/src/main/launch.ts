@@ -50,9 +50,17 @@ export function engineLaunch(): EngineLaunch {
     args: engineArgs(token, dataDir(), process.env.PHOTO3D_ENGINE_ID),
     cwd: resolve(app.getAppPath(), '..', 'engine'),
     env: app.isPackaged
-      ? // PYTHONUTF8: Python on Windows reads uv's .pth file (the engine path) in the system code
-        // page otherwise, which breaks when the user name has Cyrillic letters
-        { UV_PROJECT_ENVIRONMENT: engineEnvDir(), UV_FROZEN: '1', UV_NO_DEV: '1', PYTHONUTF8: '1' }
+      ? {
+          UV_PROJECT_ENVIRONMENT: engineEnvDir(),
+          UV_FROZEN: '1',
+          UV_NO_DEV: '1',
+          // uv's own Python, not one that happens to be installed on the computer
+          UV_PYTHON_PREFERENCE: 'only-managed',
+          // the engine is copied into the environment: a linked one needs a .pth file with its path,
+          // which Python 3.11 on Windows cannot read when the path has Cyrillic letters
+          UV_NO_EDITABLE: '1',
+          PYTHONUTF8: '1'
+        }
       : undefined
   }
 }
