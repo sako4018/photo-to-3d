@@ -83,8 +83,9 @@ jobs:
           path: repo
           sparse-checkout: samples
 
-      # Like a user named "Тест потребител": a Cyrillic name with a space in every folder the
-      # installer and the app use (AppData, the install folder and the temp folder of the setup)
+      # Like a user named "Тест потребител": a Cyrillic name with a space in the folders the installer
+      # uses (its AppData with the Python environment, the install folder and the temp folder of the setup).
+      # Electron reads AppData from Windows itself, not from %APPDATA%, so P3D_APPDATA points it there.
       - name: Make a user folder with a Cyrillic name and a space
         run: |
           $name = (-join [char[]](0x0422, 0x0435, 0x0441, 0x0442)) + ' ' + (-join [char[]](0x043F, 0x043E, 0x0442, 0x0440, 0x0435, 0x0431, 0x0438, 0x0442, 0x0435, 0x043B))
@@ -102,8 +103,7 @@ jobs:
       - name: Run the installer window
         run: |
           New-Item -ItemType Directory shots | Out-Null
-          $env:APPDATA = "$env:P3D_ROOT\AppData\Roaming"
-          $env:LOCALAPPDATA = "$env:P3D_ROOT\AppData\Local"
+          $env:P3D_APPDATA = "$env:P3D_ROOT\AppData\Roaming"
           $env:TEMP = "$env:P3D_ROOT\AppData\Local\Temp"
           $env:TMP = $env:TEMP
           $env:P3D_AUTOSTART = '1'
@@ -131,7 +131,7 @@ jobs:
           $log = "$env:P3D_ROOT\AppData\Roaming\photo-to-3d-app\installer.log"
           if (-not (Test-Path -LiteralPath $log)) { Write-Host "::error::No installer log at $log"; exit 1 }
           $text = Get-Content -LiteralPath $log -Raw -Encoding utf8
-          foreach ($want in 'graphics card:', 'signature of vc_redist.x64.exe: SIGNED', 'vc_redist exit:', 'engine check: cuda=', '[done]') {
+          foreach ($want in 'graphics card:', 'STATUS=Valid', 'vc_redist exit:', 'engine check: cuda=', '[done]') {
             if (-not $text.Contains($want)) { Write-Host "::error::The log has no '$want'"; exit 1 }
           }
           $vc = [regex]::Match($text, 'vc_redist exit: (\S+)').Groups[1].Value
@@ -146,12 +146,12 @@ jobs:
 
       - name: Start the installed app and its engine
         run: |
-          $env:APPDATA = "$env:P3D_ROOT\AppData\Roaming"
-          $env:LOCALAPPDATA = "$env:P3D_ROOT\AppData\Local"
+          # the app uses the real AppData of the runner, so it prepares its own Python environment
+          # there first (the fallback when the installer's one is missing): allow for that
           $env:PHOTO3D_ENGINE_ID = 'dummy'
           $app = Start-Process "$env:P3D_ROOT\Programs\Photo to 3D\Photo to 3D.exe" -PassThru
           $engine = $null
-          for ($i = 0; $i -lt 60 -and -not $engine; $i++) {
+          for ($i = 0; $i -lt 120 -and -not $engine; $i++) {
             Start-Sleep 5
             $engine = Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*photo3d_engine*' -and $_.Name -like 'python*' }
           }
@@ -169,10 +169,10 @@ jobs:
         if: env.REAL_MODEL
         timeout-minutes: 60
         run: |
-          $env:APPDATA = "$env:P3D_ROOT\AppData\Roaming"
+          $appData = "$env:P3D_ROOT\AppData\Roaming"
           $engineDir = "$env:P3D_ROOT\Programs\Photo to 3D\resources\engine"
-          $env:UV_PROJECT_ENVIRONMENT = "$env:APPDATA\photo-to-3d-app\engine-env"
-          $env:PHOTO3D_MODELS_DIR = "$env:APPDATA\photo-to-3d-app\data\models"
+          $env:UV_PROJECT_ENVIRONMENT = "$appData\photo-to-3d-app\engine-env"
+          $env:PHOTO3D_MODELS_DIR = "$appData\photo-to-3d-app\data\models"
           $env:HF_HUB_OFFLINE = '1'
           $uv = "$env:P3D_ROOT\Programs\Photo to 3D\resources\bin\uv.exe"
           Push-Location -LiteralPath $engineDir
@@ -185,7 +185,9 @@ jobs:
 
       - name: Keep the installer log
         if: always()
-        run: Copy-Item -LiteralPath "$env:P3D_ROOT\AppData\Roaming\photo-to-3d-app\installer.log" shots\ -ErrorAction SilentlyContinue
+        run: |
+          $log = "$env:P3D_ROOT\AppData\Roaming\photo-to-3d-app\installer.log"
+          if (Test-Path -LiteralPath $log) { Get-Content -LiteralPath $log -Encoding utf8; Copy-Item -LiteralPath $log shots\ }
 
       - uses: actions/upload-artifact@v4
         if: always()
