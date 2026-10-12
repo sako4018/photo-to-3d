@@ -4,11 +4,17 @@ name: Windows smoke test
 # on a real Windows runner. The pictures of the installer window are saved as an artifact.
 on:
   workflow_dispatch:
+    inputs:
+      real_model:
+        description: Also download the real AI model (7.9 GB) and make one STL on the processor
+        type: boolean
+        default: false
   push:
     branches: [master]
     paths:
       - installer/**
       - scripts/build-release.sh
+      - engine/src/photo3d_engine/cli.py
       - engine/uv.lock
       - app/src/main/launch.ts
       - .github/workflows/windows-smoke.yml
@@ -60,15 +66,32 @@ jobs:
     name: install and start on Windows
     needs: build
     runs-on: windows-latest
-    timeout-minutes: 60
+    timeout-minutes: 120
     defaults:
       run:
         shell: pwsh
+    env:
+      REAL_MODEL: ${{ inputs.real_model && '1' || '' }}
     steps:
       - uses: actions/download-artifact@v4
         with:
           name: windows-downloads
           path: serve
+
+      - uses: actions/checkout@v7
+        with:
+          path: repo
+          sparse-checkout: samples
+
+      # Like a user named "Тест потребител": a Cyrillic name with a space in every folder the
+      # installer and the app use (AppData, the install folder and the temp folder of the setup)
+      - name: Make a user folder with a Cyrillic name and a space
+        run: |
+          $name = (-join [char[]](0x0422, 0x0435, 0x0441, 0x0442)) + ' ' + (-join [char[]](0x043F, 0x043E, 0x0442, 0x0440, 0x0435, 0x0431, 0x0438, 0x0442, 0x0435, 0x043B))
+          $root = "D:\Users\$name"
+          New-Item -ItemType Directory "$root\AppData\Roaming", "$root\AppData\Local\Temp", "$root\Programs" -Force | Out-Null
+          "P3D_ROOT=$root" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          Write-Host "::notice title=User folder::$root"
 
       - name: Serve the downloads on port 8791
         run: |
@@ -78,27 +101,55 @@ jobs:
 
       - name: Run the installer window
         run: |
-          New-Item -ItemType Directory shots, install | Out-Null
+          New-Item -ItemType Directory shots | Out-Null
+          $env:APPDATA = "$env:P3D_ROOT\AppData\Roaming"
+          $env:LOCALAPPDATA = "$env:P3D_ROOT\AppData\Local"
+          $env:TEMP = "$env:P3D_ROOT\AppData\Local\Temp"
+          $env:TMP = $env:TEMP
           $env:P3D_AUTOSTART = '1'
           $env:P3D_SHOT = "$PWD\shots"
-          $env:P3D_INSTALL_DIR = "$PWD\install"
+          $env:P3D_INSTALL_DIR = "$env:P3D_ROOT\Programs"
+          # the runner already has the Visual C++ runtime: install it anyway to try the download,
+          # the signature check and the elevated start
+          $env:P3D_FORCE_VCREDIST = '1'
+          if (-not $env:REAL_MODEL) { $env:P3D_SKIP_MODEL = '1' }
           # the single downloaded file: unpacks itself and opens the installer window
           $p = Start-Process "serve\Photo-to-3D-Setup-win-x64.exe" -PassThru
-          $deadline = (Get-Date).AddMinutes(40)
+          $deadline = (Get-Date).AddMinutes(80)
           while ((Get-Date) -lt $deadline -and -not (Test-Path shots\done.png) -and -not (Test-Path shots\error.png)) {
             Start-Sleep 5
           }
+          Start-Sleep 2
           $phases = (Get-ChildItem shots -Name) -join ', '
           Write-Host "::notice title=Installer phases reached::$phases"
           if (-not (Test-Path shots\done.png)) { Write-Host "::error::The installer did not reach 'done' (reached: $phases)"; exit 1 }
-          Get-ChildItem install -Name | ForEach-Object { Write-Host "::notice title=Installed::$_" }
+          Get-ChildItem $env:P3D_INSTALL_DIR -Name | ForEach-Object { Write-Host "::notice title=Installed::$_" }
           Stop-Process $p -Force -ErrorAction SilentlyContinue
+
+      - name: Check the installer log
+        run: |
+          $log = "$env:P3D_ROOT\AppData\Roaming\photo-to-3d-app\installer.log"
+          if (-not (Test-Path -LiteralPath $log)) { Write-Host "::error::No installer log at $log"; exit 1 }
+          $text = Get-Content -LiteralPath $log -Raw -Encoding utf8
+          foreach ($want in 'graphics card:', 'signature of vc_redist.x64.exe: SIGNED', 'vc_redist exit:', 'engine check: cuda=', '[done]') {
+            if (-not $text.Contains($want)) { Write-Host "::error::The log has no '$want'"; exit 1 }
+          }
+          $vc = [regex]::Match($text, 'vc_redist exit: (\S+)').Groups[1].Value
+          Write-Host "::notice title=Visual C++ runtime installer exit code::$vc"
+          if ($env:REAL_MODEL) {
+            $models = "$env:P3D_ROOT\AppData\Roaming\photo-to-3d-app\data\models\triposg"
+            $gb = [math]::Round(((Get-ChildItem -LiteralPath $models -Recurse -File | Measure-Object Length -Sum).Sum / 1e9), 2)
+            Write-Host "::notice title=Model downloaded::$gb GB in $models"
+            if ($gb -lt 7) { Write-Host '::error::The model is not fully downloaded'; exit 1 }
+            if (-not (Test-Path "$env:USERPROFILE\.rembg\models\u2net\u2net.onnx")) { Write-Host '::error::The background model is missing'; exit 1 }
+          }
 
       - name: Start the installed app and its engine
         run: |
+          $env:APPDATA = "$env:P3D_ROOT\AppData\Roaming"
+          $env:LOCALAPPDATA = "$env:P3D_ROOT\AppData\Local"
           $env:PHOTO3D_ENGINE_ID = 'dummy'
-          $env:PHOTO3D_DATA_DIR = "$PWD\data"
-          $app = Start-Process "install\Photo to 3D\Photo to 3D.exe" -PassThru
+          $app = Start-Process "$env:P3D_ROOT\Programs\Photo to 3D\Photo to 3D.exe" -PassThru
           $engine = $null
           for ($i = 0; $i -lt 60 -and -not $engine; $i++) {
             Start-Sleep 5
@@ -111,6 +162,30 @@ jobs:
           $left = Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*photo3d_engine*' -and $_.Name -like 'python*' }
           if ($left) { Write-Host '::error::The engine kept running after the app was closed'; exit 1 }
           Write-Host '::notice title=Engine stopped::The engine ended together with the app'
+
+      # Only when started by hand with real_model: one real STL with TripoSG on the processor
+      # (the runner has no graphics card), offline, from the files the installer downloaded.
+      - name: Make one STL with the real model (processor)
+        if: env.REAL_MODEL
+        timeout-minutes: 60
+        run: |
+          $env:APPDATA = "$env:P3D_ROOT\AppData\Roaming"
+          $engineDir = "$env:P3D_ROOT\Programs\Photo to 3D\resources\engine"
+          $env:UV_PROJECT_ENVIRONMENT = "$env:APPDATA\photo-to-3d-app\engine-env"
+          $env:PHOTO3D_MODELS_DIR = "$env:APPDATA\photo-to-3d-app\data\models"
+          $env:HF_HUB_OFFLINE = '1'
+          $uv = "$env:P3D_ROOT\Programs\Photo to 3D\resources\bin\uv.exe"
+          Push-Location -LiteralPath $engineDir
+          & $uv run --frozen --no-dev --offline photo3d make "$env:GITHUB_WORKSPACE\repo\samples\robot.png" --out "$env:P3D_ROOT\out" --height 50 --quality fast
+          $code = $LASTEXITCODE
+          Pop-Location
+          if ($code -ne 0) { Write-Host "::error::photo3d make ended with $code"; exit 1 }
+          $stl = Get-ChildItem -LiteralPath "$env:P3D_ROOT\out" -Recurse -Filter *.stl | Select-Object -First 1
+          Write-Host "::notice title=STL made on Windows::$($stl.Name), $([math]::Round($stl.Length / 1e6, 1)) MB"
+
+      - name: Keep the installer log
+        if: always()
+        run: Copy-Item -LiteralPath "$env:P3D_ROOT\AppData\Roaming\photo-to-3d-app\installer.log" shots\ -ErrorAction SilentlyContinue
 
       - uses: actions/upload-artifact@v4
         if: always()
