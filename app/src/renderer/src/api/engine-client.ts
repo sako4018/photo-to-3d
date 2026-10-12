@@ -35,6 +35,19 @@ export interface EngineInfoRow {
 export interface JobOptions {
   quality?: string
   height_mm?: number
+  /** A new seed gives a different model from the same photo. */
+  seed?: number
+}
+
+export type PartOperation = 'smooth' | 'thicker' | 'thinner' | 'remove'
+
+/** A change to one part of the model: a point on the STL (mm, Z up) and how far around it. */
+export interface PartEdit {
+  op: PartOperation
+  point: [number, number, number]
+  radius_mm: number
+  amount_mm?: number
+  strength?: number
 }
 
 export interface PrintPrepOptions {
@@ -120,6 +133,14 @@ export class EngineClient {
 
   printPrep(projectId: string, options: PrintPrepOptions): Promise<Project> {
     return this.call('POST', `/projects/${projectId}/print-prep`, options)
+  }
+
+  addEdit(projectId: string, edit: PartEdit): Promise<Project> {
+    return this.call('POST', `/projects/${projectId}/edits`, edit)
+  }
+
+  undoEdit(projectId: string): Promise<Project> {
+    return this.call('DELETE', `/projects/${projectId}/edits/last`)
   }
 
   exportStl(projectId: string, destPath: string): Promise<{ path: string }> {

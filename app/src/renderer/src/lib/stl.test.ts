@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { loadModel, plateSize } from './stl'
+import { loadModel, plateSize, viewerToStl, type Vec3 } from './stl'
 
 /** Binary STL of a box with its corner at (10, 20, 5) and size 4 x 6 x 30 (Z is the tall side). */
 function boxStl(): Uint8Array {
@@ -33,6 +33,19 @@ describe('loadModel', () => {
     expect(box.min.y).toBeCloseTo(0)
     expect((box.min.x + box.max.x) / 2).toBeCloseTo(0)
     expect((box.min.z + box.max.z) / 2).toBeCloseTo(0)
+  })
+
+  it('maps a point in the viewer back to the STL millimetres', () => {
+    const { geometry, offset } = loadModel(boxStl())
+    const positions = geometry.getAttribute('position')
+    const mapped: Vec3[] = []
+    for (let i = 0; i < positions.count; i++) {
+      mapped.push(viewerToStl([positions.getX(i), positions.getY(i), positions.getZ(i)], offset))
+    }
+    const low = [0, 1, 2].map((axis) => Math.min(...mapped.map((p) => p[axis])))
+    const high = [0, 1, 2].map((axis) => Math.max(...mapped.map((p) => p[axis])))
+    low.forEach((value, axis) => expect(value).toBeCloseTo([10, 20, 5][axis], 4))
+    high.forEach((value, axis) => expect(value).toBeCloseTo([14, 26, 35][axis], 4))
   })
 
   it('rejects an empty file', () => {

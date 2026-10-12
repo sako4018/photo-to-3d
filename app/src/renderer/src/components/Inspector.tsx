@@ -11,11 +11,13 @@ import {
   type Report
 } from '../lib/printability'
 import { useStore } from '../store'
+import { FixPanel } from './FixPanel'
+import { Icon, type IconName } from './Icon'
 
 const FILE_MANAGER = navigator.userAgent.includes('Windows') ? 'Explorer' : 'Finder'
 import './Inspector.css'
 
-const MARKS = { ok: '✓', warn: '⚠', bad: '✕' } as const
+const MARKS: Record<'ok' | 'warn' | 'bad', IconName> = { ok: 'check', warn: 'warn', bad: 'cross' }
 const QUALITIES = [
   { id: 'fast', label: 'Fast', time: 'about 1.5 min' },
   { id: 'normal', label: 'Normal', time: 'about 2 min' },
@@ -30,11 +32,19 @@ function number(settings: Record<string, unknown>, key: string, fallback: number
   return typeof value === 'number' ? value : fallback
 }
 
+/** A random start for the AI model, so "Recreate" gives a different model. */
+function newSeed(): number {
+  return Math.floor(Math.random() * 2 ** 31)
+}
+
 function sameValue(a: unknown, b: unknown): boolean {
   return JSON.stringify(a) === JSON.stringify(b)
 }
 
-/** Panel on the right of the workspace (inspector from the plan, 2.4). */
+/**
+ * The controls of the workspace, drawn over the 3D view (viewport-first layout):
+ * Save and slicer buttons top right, Printability chips top left, the floating panel on the right.
+ */
 export function Inspector({ project }: { project: Project }): React.JSX.Element {
   const updateProject = useStore((state) => state.updateProject)
   const createModel = useStore((state) => state.createModel)
@@ -115,6 +125,17 @@ export function Inspector({ project }: { project: Project }): React.JSX.Element 
     [canSave, project.id]
   )
 
+  /** Changes typed in "Fix a part": the height box has to show them too. */
+  function applyTyped(changes: Edits): void {
+    if (changes.height_mm !== undefined) setHeightText(String(changes.height_mm))
+    change(changes)
+  }
+
+  /** A new seed, so the same photo gives a different model (not the same one again). */
+  function recreate(): void {
+    void createModel(project.id, { quality, height_mm: current.height, seed: newSeed() })
+  }
+
   function turn(axis: number): void {
     const rotation = [...current.rotation]
     rotation[axis] = (rotation[axis] + 1) % 4
@@ -122,137 +143,11 @@ export function Inspector({ project }: { project: Project }): React.JSX.Element 
   }
 
   return (
-    <aside className="inspector">
-      <section>
-        <h2>Printability</h2>
-        {report ? (
-          printability(report, current.plate > 0).map((row) => (
-            <div key={row.text} className={`print-row ${row.level}`}>
-              <span className="mark">{MARKS[row.level]}</span>
-              <div>
-                <div>{row.text}</div>
-                {row.hint && <div className="hint">{row.hint}</div>}
-                {row.action === 'add-base-plate' && (
-                  <button onClick={() => change({ base_plate_mm: DEFAULT_PLATE_MM })}>Add base plate</button>
-                )}
-              </div>
-            </div>
-          ))
-        ) : (
-          <p className="hint">No report yet.</p>
-        )}
-      </section>
-
-      <section>
-        <h2>Size {busy && <span className="spinner" title="Updating…" />}</h2>
-        <label className="field">
-          <span>Height</span>
-          <span className="input-unit">
-            <input
-              type="text"
-              inputMode="decimal"
-              value={heightText}
-              className={heightValid ? '' : 'invalid'}
-              onChange={(event) => {
-                setHeightText(event.target.value)
-                const value = parseHeight(event.target.value)
-                if (value !== null) change({ height_mm: value })
-              }}
-            />
-            mm
-          </span>
-        </label>
-        {!heightValid && (
-          <div className="hint bad">
-            Use {HEIGHT_RANGE.min} to {HEIGHT_RANGE.max} mm.
-          </div>
-        )}
-        {report && <div className="hint">{sizeLine(report)}</div>}
-      </section>
-
-      <section>
-        <h2>Placement</h2>
-        <div className="turns">
-          {['X', 'Y', 'Z'].map((axis, index) => (
-            <button key={axis} onClick={() => turn(index)} title={`Turn 90° around ${axis}`}>
-              Turn {axis}
-            </button>
-          ))}
-        </div>
-        <label className="field">
-          <span>Base plate</span>
-          <input
-            type="checkbox"
-            checked={current.plate > 0}
-            onChange={(event) => change({ base_plate_mm: event.target.checked ? DEFAULT_PLATE_MM : 0 })}
-          />
-        </label>
-        {current.plate > 0 && (
-          <label className="field">
-            <span>Thickness</span>
-            <input
-              type="range"
-              min={1}
-              max={10}
-              step={1}
-              value={current.plate}
-              onChange={(event) => change({ base_plate_mm: Number(event.target.value) })}
-            />
-            <span className="value">{current.plate} mm</span>
-          </label>
-        )}
-        <label className="field">
-          <span>Flat base cut</span>
-          <input
-            type="range"
-            min={0}
-            max={20}
-            step={1}
-            value={current.cut}
-            onChange={(event) => change({ base_cut_pct: Number(event.target.value) })}
-          />
-          <span className="value">{current.cut}%</span>
-        </label>
-      </section>
-
-      <section>
-        <h2>Detail</h2>
-        <div className="segmented">
-          {QUALITIES.map((item) => (
-            <button
-              key={item.id}
-              className={quality === item.id ? 'selected' : ''}
-              onClick={() => setQuality(item.id)}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-        <button
-          onClick={() => void createModel(project.id, { quality, height_mm: current.height })}
-          title="Make a new 3D model from the photo"
-        >
-          Recreate · {QUALITIES.find((item) => item.id === quality)?.time}
-        </button>
-      </section>
-
-      <footer className="inspector-actions">
-        {problem && <p className="hint bad">{problem}</p>}
-        {saved && <p className="hint">{saved}</p>}
-        <button
-          className="primary"
-          disabled={busy || !report}
-          onClick={() =>
-            void fileAction(
-              () => window.api.files.saveStl(project.id),
-              (path) => `Saved: ${path}`
-            )
-          }
-        >
-          Save STL
-        </button>
+    <>
+      <div className="topbar-actions">
         {slicer && (
           <button
+            className="ghost"
             disabled={busy || !report}
             onClick={() =>
               void fileAction(
@@ -264,10 +159,163 @@ export function Inspector({ project }: { project: Project }): React.JSX.Element 
             Open in {slicer.name}
           </button>
         )}
-        <button className="link" onClick={() => void fileAction(() => window.api.files.showInFolder(project.id))}>
-          Show in {FILE_MANAGER}
+        <button
+          className="ghost icon-only"
+          title={`Show in ${FILE_MANAGER}`}
+          aria-label={`Show in ${FILE_MANAGER}`}
+          onClick={() => void fileAction(() => window.api.files.showInFolder(project.id))}
+        >
+          <Icon name="folder" />
         </button>
-      </footer>
-    </aside>
+        <button
+          className="primary save"
+          disabled={busy || !report}
+          title="Choose where to save the STL file"
+          onClick={() =>
+            void fileAction(
+              () => window.api.files.saveStl(project.id),
+              (path) => `Saved: ${path}`
+            )
+          }
+        >
+          <Icon name="download" /> Save STL…
+        </button>
+      </div>
+
+      {(problem || saved) && (
+        <div className={`action-note${problem ? ' bad' : ''}`} role="status">
+          {problem ?? saved}
+        </div>
+      )}
+
+      <div className="print-chips">
+        {report ? (
+          printability(report, current.plate > 0).map((row) => (
+            <div key={row.text} className={`chip ${row.level}`}>
+              <span className="mark">
+                <Icon name={MARKS[row.level]} size={14} />
+              </span>
+              <span className="chip-text">
+                {row.text}
+                {row.hint && <span className="chip-hint"> · {row.hint}</span>}
+              </span>
+              {row.action === 'add-base-plate' && (
+                <button onClick={() => change({ base_plate_mm: DEFAULT_PLATE_MM })}>Add base plate</button>
+              )}
+            </div>
+          ))
+        ) : (
+          <div className="chip">No report yet.</div>
+        )}
+      </div>
+
+      <aside className="inspector">
+        <FixPanel
+          project={project}
+          state={{
+            height_mm: current.height,
+            base_plate_mm: current.plate,
+            base_cut_pct: current.cut,
+            rotation: current.rotation
+          }}
+          busy={busy}
+          onApply={applyTyped}
+          onRecreate={recreate}
+        />
+
+        <section>
+          <h2>Size {busy && <span className="spinner" title="Updating…" />}</h2>
+          <label className="field">
+            <span>Height</span>
+            <span className="input-unit">
+              <input
+                type="text"
+                inputMode="decimal"
+                value={heightText}
+                className={heightValid ? '' : 'invalid'}
+                onChange={(event) => {
+                  setHeightText(event.target.value)
+                  const value = parseHeight(event.target.value)
+                  if (value !== null) change({ height_mm: value })
+                }}
+              />
+              mm
+            </span>
+          </label>
+          {!heightValid && (
+            <div className="hint bad">
+              Use {HEIGHT_RANGE.min} to {HEIGHT_RANGE.max} mm.
+            </div>
+          )}
+          {report && <div className="hint">{sizeLine(report)}</div>}
+        </section>
+
+        <section>
+          <h2>Placement</h2>
+          <div className="turns">
+            {['X', 'Y', 'Z'].map((axis, index) => (
+              <button key={axis} onClick={() => turn(index)} title={`Turn 90° around ${axis}`}>
+                <Icon name="turn" size={14} /> {axis}
+              </button>
+            ))}
+          </div>
+          <label className="field">
+            <span>Base plate</span>
+            <input
+              type="checkbox"
+              checked={current.plate > 0}
+              onChange={(event) => change({ base_plate_mm: event.target.checked ? DEFAULT_PLATE_MM : 0 })}
+            />
+          </label>
+          {current.plate > 0 && (
+            <label className="field">
+              <span>Thickness</span>
+              <input
+                type="range"
+                min={1}
+                max={10}
+                step={1}
+                value={current.plate}
+                onChange={(event) => change({ base_plate_mm: Number(event.target.value) })}
+              />
+              <span className="value">{current.plate} mm</span>
+            </label>
+          )}
+          <label className="field">
+            <span>Flat base cut</span>
+            <input
+              type="range"
+              min={0}
+              max={20}
+              step={1}
+              value={current.cut}
+              onChange={(event) => change({ base_cut_pct: Number(event.target.value) })}
+            />
+            <span className="value">{current.cut}%</span>
+          </label>
+        </section>
+
+        <section className="recreate">
+          <h2>New version from the photo</h2>
+          <div className="segmented">
+            {QUALITIES.map((item) => (
+              <button
+                key={item.id}
+                className={quality === item.id ? 'selected' : ''}
+                onClick={() => setQuality(item.id)}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={recreate}
+            title="Runs the AI again with a new start, so the model comes out different"
+          >
+            <Icon name="retry" size={14} /> Recreate · {QUALITIES.find((item) => item.id === quality)?.time}
+          </button>
+        </section>
+      </aside>
+    </>
   )
 }

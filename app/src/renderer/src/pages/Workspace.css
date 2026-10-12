@@ -1,29 +1,42 @@
+/* Viewport-first: the 3D view fills the whole area, the controls float over it. */
 .workspace {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  position: relative;
   height: 100%;
 }
 
-.workspace-title {
-  font-size: 16px;
-  font-weight: 600;
-  text-align: center;
-}
-
-.workspace-body {
-  display: flex;
-  gap: 12px;
-  flex: 1;
-  min-height: 0;
-}
-
 .workspace-view {
-  flex: 1;
-  min-width: 0;
+  position: absolute;
+  inset: 0;
+}
+
+.workspace-title {
+  position: absolute;
+  top: 8px;
+  left: 16px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  height: 34px;
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-title);
+  font-weight: 600;
+  -webkit-app-region: no-drag;
+}
+
+/* The empty strip on top still drags the window. */
+.workspace::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: var(--topbar-height);
+  z-index: 1;
+  -webkit-app-region: drag;
 }
 
 .workspace-note {
   text-align: center;
-  margin-top: 40px;
+  margin-top: 40vh;
 }

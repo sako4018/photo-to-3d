@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import type { BufferGeometry } from 'three'
-import { loadModel, type ModelSize } from '../lib/stl'
+import { loadModel, type ModelSize, type Vec3 } from '../lib/stl'
 
 export interface Model {
   geometry: BufferGeometry
   size: ModelSize
+  /** How the viewer moved the STL; needed to turn a clicked point back into STL millimetres. */
+  offset: Vec3
 }
 
 type Loaded = { key: string; model: Model | null; error: string | null }

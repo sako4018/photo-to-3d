@@ -11,6 +11,7 @@ import type {
 } from '@shared/types'
 import { engineClient, EngineError, type EngineInfoRow, type JobOptions } from './api/engine-client'
 import type { Sample } from './lib/format'
+import type { Vec3 } from './lib/stl'
 import { isActive, stepSample } from './lib/job-steps'
 
 interface AppState {
@@ -42,6 +43,9 @@ interface AppState {
   renamingId: string | null
   /** A short message at the bottom of the window (errors of small actions). */
   notice: string | null
+  /** The part of the model the user clicked, for "Fix a part". */
+  selectedPart: SelectedPart | null
+  selectPart(part: SelectedPart | null): void
   /** Forgets a finished job, so its error or "cancelled" card goes away. */
   dismissJob(projectId: string): void
   setRenaming(id: string | null): void
@@ -60,6 +64,16 @@ interface AppState {
   addPhoto(path: string): Promise<string | null>
   /** Starts (or restarts) the 3D model of a project that already has a photo. */
   createModel(projectId: string, options?: JobOptions): Promise<boolean>
+}
+
+export interface SelectedPart {
+  projectId: string
+  /** The clicked point in the viewer (Y up). */
+  view: Vec3
+  /** The same point on the STL (Z up, mm), as the engine wants it. */
+  stl: Vec3
+  /** Size of the picked area, mm. */
+  radius: number
 }
 
 function explain(error: unknown): string {
@@ -82,6 +96,8 @@ export const useStore = create<AppState>((set, get) => ({
   photoProblem: null,
   renamingId: null,
   notice: null,
+  selectedPart: null,
+  selectPart: (selectedPart) => set({ selectedPart }),
 
   refreshModels: async () => {
     set({ models: await engineClient.engines() })

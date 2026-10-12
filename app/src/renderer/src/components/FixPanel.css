@@ -1,0 +1,96 @@
+.fix {
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.fix-working {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  font-size: var(--text-label);
+  letter-spacing: 0;
+  text-transform: none;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.part-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.part-buttons button {
+  padding: 6px 4px;
+}
+
+.fix .hint {
+  margin: 0 0 10px;
+}
+
+.chat-log {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 180px;
+  margin-bottom: 8px;
+  overflow-y: auto;
+}
+
+.bubble {
+  max-width: 92%;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  line-height: 1.4;
+  user-select: text;
+}
+
+.bubble.user {
+  align-self: flex-end;
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.bubble.app {
+  align-self: flex-start;
+  background: var(--surface-raised);
+}
+
+.bubble.bad {
+  color: var(--danger);
+}
+
+.bubble ul {
+  margin: 4px 0 0;
+  padding-left: 16px;
+  color: var(--text-muted);
+}
+
+.chat-row {
+  display: flex;
+  gap: 6px;
+}
+
+.chat-row input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+
+.fix .link {
+  display: block;
+  margin-top: 6px;
+}
+
+.chat-row button {
+  width: auto;
+}

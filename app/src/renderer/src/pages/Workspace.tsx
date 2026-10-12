@@ -6,7 +6,7 @@ import { useModel } from '../hooks/useModel'
 import { useStore } from '../store'
 import './Workspace.css'
 
-/** The finished model: 3D view in the middle, inspector panel on the right. */
+/** The finished model: the 3D view fills the area, the controls float over it. */
 export function Workspace({ project }: { project: Project }): React.JSX.Element {
   const revision = useStore((state) => state.modelRevision[project.id] ?? 0)
   const renaming = useStore((state) => state.renamingId === project.id)
@@ -15,6 +15,10 @@ export function Workspace({ project }: { project: Project }): React.JSX.Element 
 
   return (
     <div className="workspace">
+      <div className="workspace-view">
+        {model && <Viewer3D key={`${project.id}:${revision}`} model={model} projectId={project.id} />}
+        {!model && <p className="workspace-note">{error ?? 'Loading the model…'}</p>}
+      </div>
       <header className="workspace-title" title="Double click to rename" onDoubleClick={() => setRenaming(project.id)}>
         {renaming ? (
           <RenameInput
@@ -27,13 +31,7 @@ export function Workspace({ project }: { project: Project }): React.JSX.Element 
           project.name
         )}
       </header>
-      <div className="workspace-body">
-        <div className="workspace-view">
-          {model && <Viewer3D key={`${project.id}:${revision}`} model={model} />}
-          {!model && <p className="workspace-note">{error ?? 'Loading the model…'}</p>}
-        </div>
-        <Inspector key={project.id} project={project} />
-      </div>
+      <Inspector key={project.id} project={project} />
     </div>
   )
 }
