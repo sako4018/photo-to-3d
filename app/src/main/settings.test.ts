@@ -11,7 +11,8 @@ describe('sanitize', () => {
     expect(sanitize({ slicer: 'orca', defaultHeightMm: 80, defaultQuality: 'fast' })).toEqual({
       slicer: 'orca',
       defaultHeightMm: 80,
-      defaultQuality: 'fast'
+      defaultQuality: 'fast',
+      saveFolder: null
     })
     expect(sanitize({ slicer: 5, defaultHeightMm: 9000, defaultQuality: 'ultra' })).toEqual(DEFAULT_SETTINGS)
     expect(sanitize(null)).toEqual(DEFAULT_SETTINGS)

@@ -5,7 +5,8 @@ import type { AppSettings } from '@shared/types'
 export const DEFAULT_SETTINGS: AppSettings = {
   slicer: null,
   defaultHeightMm: 50,
-  defaultQuality: 'normal'
+  defaultQuality: 'normal',
+  saveFolder: null
 }
 
 const QUALITIES = ['fast', 'normal', 'detailed']
@@ -20,7 +21,8 @@ export function sanitize(raw: unknown): AppSettings {
       typeof height === 'number' && height >= 5 && height <= 500 ? height : DEFAULT_SETTINGS.defaultHeightMm,
     defaultQuality: QUALITIES.includes(input.defaultQuality as string)
       ? (input.defaultQuality as AppSettings['defaultQuality'])
-      : DEFAULT_SETTINGS.defaultQuality
+      : DEFAULT_SETTINGS.defaultQuality,
+    saveFolder: typeof input.saveFolder === 'string' && input.saveFolder ? input.saveFolder : null
   }
 }
 

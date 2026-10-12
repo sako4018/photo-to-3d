@@ -161,6 +161,8 @@ export interface AppSettings {
   slicer: string | null
   defaultHeightMm: number
   defaultQuality: 'fast' | 'normal' | 'detailed'
+  /** Folder of the last saved STL; the save dialog opens there. null = Downloads. */
+  saveFolder: string | null
 }
 
 export type UploadResult =

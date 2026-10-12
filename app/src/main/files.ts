@@ -1,7 +1,7 @@
 import { execFile } from 'child_process'
 import { existsSync } from 'fs'
 import { homedir } from 'os'
-import { join } from 'path'
+import { dirname, join } from 'path'
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import { IpcChannels, type EngineInfo, type FileResult, type SlicerInfo } from '@shared/types'
 import { requestEngine, type EngineHandle } from './engine-ipc'
@@ -67,7 +67,7 @@ export function registerFileIpc(engine: EngineHandle): void {
     const win = BrowserWindow.fromWebContents(event.sender)
     const options: Electron.SaveDialogOptions = {
       title: 'Save STL',
-      defaultPath: join(app.getPath('downloads'), stl.name),
+      defaultPath: join(settings.get().saveFolder ?? app.getPath('downloads'), stl.name),
       filters: [{ name: 'STL model', extensions: ['stl'] }]
     }
     const chosen = win ? await dialog.showSaveDialog(win, options) : await dialog.showSaveDialog(options)
@@ -75,7 +75,11 @@ export function registerFileIpc(engine: EngineHandle): void {
       return { ok: false, canceled: true, error: '', hint: '' }
     }
     const saved = await exportStl(info, projectId, chosen.filePath)
-    if (saved.ok) shell.showItemInFolder(chosen.filePath)
+    if (saved.ok) {
+      // the next save opens in the folder the person chose this time
+      settings.set({ saveFolder: dirname(chosen.filePath) })
+      shell.showItemInFolder(chosen.filePath)
+    }
     return saved
   })
 
