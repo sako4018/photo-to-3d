@@ -30,6 +30,28 @@ def from_manifold(result: manifold3d.Manifold) -> trimesh.Trimesh:
         process=False,
     )
     mesh.merge_vertices()
+    return drop_back_to_back(mesh)
+
+
+def drop_back_to_back(mesh: trimesh.Trimesh) -> trimesh.Trimesh:
+    """Remove flat slivers with no volume that boolean operations sometimes leave.
+
+    Two kinds: triangles that use one corner twice (merging corners that were almost on the
+    same spot does that), and pairs of triangles on the same three corners facing each
+    other. They are not part of the solid, but they make it look open and in several parts.
+    """
+    faces = mesh.faces
+    repeated = (
+        (faces[:, 0] == faces[:, 1]) | (faces[:, 1] == faces[:, 2]) | (faces[:, 0] == faces[:, 2])
+    )
+    pairs = trimesh.grouping.group_rows(np.sort(faces, axis=1), require_count=2)
+    if not repeated.any() and len(pairs) == 0:
+        return mesh
+    keep = ~repeated
+    if len(pairs):
+        keep[np.ravel(pairs)] = False
+    mesh.update_faces(keep)
+    mesh.remove_unreferenced_vertices()
     return mesh
 
 

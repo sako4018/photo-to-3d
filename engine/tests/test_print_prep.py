@@ -394,3 +394,25 @@ def test_pipeline_keeps_the_full_mesh_if_every_simplification_breaks_it(sphere, 
 
     assert is_printable(result.mesh)
     assert any("kept the full-detail version" in n for n in result.notes)
+
+
+def test_back_to_back_slivers_from_booleans_are_dropped(sphere):
+    from photo3d_engine.print_prep.base_cut import drop_back_to_back
+
+    corner = len(sphere.vertices)
+    sliver_vertices = np.array([[20.0, 0, 0], [21, 0, 0], [20, 1, 0]])
+    faces = np.vstack(
+        [
+            sphere.faces,
+            [[corner, corner + 1, corner + 2], [corner, corner + 2, corner + 1]],
+            [
+                [corner, corner + 1, corner + 1],
+                [corner + 1, corner + 1, corner + 2],
+            ],  # one corner twice
+        ]
+    )
+    dirty = trimesh.Trimesh(np.vstack([sphere.vertices, sliver_vertices]), faces, process=False)
+    assert len(dirty.split(only_watertight=False)) >= 2
+    clean = drop_back_to_back(dirty)
+    assert len(clean.faces) == len(sphere.faces)
+    assert clean.is_watertight and len(clean.split(only_watertight=False)) == 1
