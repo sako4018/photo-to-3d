@@ -32,7 +32,7 @@ npm ci
 npm run lint && npm run typecheck && npm test && npm run build
 ```
 
-The CI runs these on Linux and Windows. A separate workflow (`windows-smoke.yml`) builds the downloads, runs the Windows installer and starts the installed app on a Windows runner when the installer, `scripts/build-release.sh` or `engine/uv.lock` change. The downloads are built locally with `scripts/build-release.sh` (Mac only).
+The CI runs the app checks on Linux and Windows, the engine tests on macOS and Windows, and the installer unit tests (`node --test steps.test.js` in `installer/`). A separate workflow (`windows-smoke.yml`) builds the downloads, runs the Windows installer and starts the installed app on a Windows runner when the installer, `scripts/build-release.sh` or `engine/uv.lock` change. The downloads are built locally with `scripts/build-release.sh` (Mac only).
 
 ## Making changes
 
