@@ -20,16 +20,18 @@ The **command line**, the **local HTTP server** (FastAPI) and the **windowed app
 
 In the app you drop a photo, watch the progress, rotate the model in 3D, change height, base and rotation (without running the AI again), and save the STL or open it in a slicer. Details and what was checked: [app/README.md](app/README.md) (in Bulgarian) and [docs/phase-2-app.md](docs/phase-2-app.md). The plan is in [docs/PLAN.md](docs/PLAN.md) (in Bulgarian).
 
-**Not done yet:** the app is not signed (macOS and Windows warn on the first start), there is no automatic GitHub release (the files are made with `scripts/build-release.sh`), and the Windows version has only been checked in GitHub Actions, not on a real computer.
+**Not done yet:** the app is not signed (macOS and Windows warn on the first start), the GitHub release is made by hand (the files are built with `scripts/build-release.sh`), and the Windows version has only been checked in GitHub Actions, not on a real computer.
 
 ## How to install
 
-The page in `site/` (locally: `python3 -m http.server 8791` in the `site/` folder, then http://localhost:8791) has two download buttons: one for Mac and one for Windows.
+The page in `site/` is at https://sako4018.github.io/photo-to-3d/ (locally: `python3 -m http.server 8791` in the `site/` folder, then http://localhost:8791). It has two download buttons, one for Mac and one for Windows, that download the installer from the latest release (now `v0.0.2`).
 
 1. You download one file: a `.dmg` installer on Mac or an `.exe` on Windows (self-extracting, nothing to unzip).
-2. You open it: a window with a status bar downloads the app, checks it (SHA-256) and installs it (Mac: `~/Applications`, Windows: `%LOCALAPPDATA%\Programs`).
+2. You open it: a window with a status bar. On Windows it first checks the system and the graphics card (`nvidia-smi`) and, if missing, downloads and installs the Microsoft Visual C++ runtime (it checks Microsoft's signature and asks for administrator permission once). Then it downloads the app, checks it (SHA-256) and installs it (Mac: `~/Applications`, Windows: `%LOCALAPPDATA%\Programs`).
 3. The same window then prepares the Python environment (PyTorch, about 1 GB on Mac, more on Windows with CUDA). The app brings its own `uv`, so nothing is installed by hand.
-4. On the first start the app downloads the model (about 7.9 GB), with Pause/Resume.
+4. Last it downloads the AI model (about 7.9 GB) and the small background-removal model (about 176 MB), so the first photo also works offline. If the model download is interrupted the install stays, and the app finishes it on the first start (with Pause/Resume).
+
+If something goes wrong the installer writes a log to `%APPDATA%\photo-to-3d-app\installer.log` (Windows) or `~/Library/Application Support/photo-to-3d-app/installer.log` (Mac).
 
 The download files are built on a Mac with `scripts/build-release.sh [base-url]` into `site/downloads/` (not in git). The script also builds the Windows package from the Windows build of Electron.
 
@@ -97,7 +99,7 @@ What is verified: 147 automated tests when the server was added (176 now) (with 
 
 The numbers come from [docs/benchmarks.md](docs/benchmarks.md), measured on a **MacBook Pro M1 Pro with 16 GB RAM**. Nothing else has been tried.
 
-- **Mainly Apple Silicon.** One computer was tested. Windows was only run on a GitHub Actions runner (installer, start and stop of the engine with the test model, no graphics card). Intel Macs, NVIDIA and TripoSG on Windows are untested.
+- **Mainly Apple Silicon.** One computer was tested. Windows was only run on a GitHub Actions runner (installer with a Cyrillic user folder, engine tests, start and stop of the engine with the test model, no graphics card). Intel Macs, NVIDIA, the full model download through the Windows installer and TripoSG on Windows are untested.
 - **16 GB of memory is needed.** TripoSG peaks at about 7.5–9.5 GB. On a Mac with 8 GB it will probably not run (not tried).
 - **Slow and big:** about 2 minutes per photo and about 7.9 GB download. Tried on 4 photos (chair, watch, sofa, wooden figure). With `detailed`, a few small dots stay on flat areas after simplification.
 - **Small details:** the face of an 80 mm figure has its shape, but the features are blurred.
