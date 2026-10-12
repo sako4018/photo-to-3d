@@ -457,9 +457,11 @@ Bambu/Orca и Prusa ползват **различни разширения** н�
 | GET/PATCH/DELETE | `/projects/{id}` | детайли / преименуване / изтриване |
 | POST | `/projects/{id}/inputs` | снимка |
 | POST | `/projects/{id}/preview-mask` | PNG без фон за preview |
-| POST | `/jobs` | `{project_id, engine, quality, device}` → `job_id` |
+| POST | `/jobs` | `{project_id, engine, quality, device, seed}` → `job_id` |
 | GET | `/jobs/{id}` · POST `/jobs/{id}/cancel` | статус / отказ |
 | POST | `/projects/{id}/print-prep` | `{height_mm, base_cut_pct, base_plate_mm, rotation, quality}` → нов mesh + доклад (около 1 s) |
+| POST | `/projects/{id}/edits` | `{op: smooth\|thicker\|thinner\|remove, point, radius_mm, amount_mm?, strength?}` → поправка на част от модела (✅ 12.10.2026) |
+| DELETE | `/projects/{id}/edits/last` | връща последната поправка (✅) |
 | GET | `/projects/{id}/report` | доклад за принтируемост |
 | POST | `/projects/{id}/export` | `{format: stl\|3mf\|obj\|glb, dest_path}` |
 | WS | `/ws` | `progress` / `done` / `error` събития |
