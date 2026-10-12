@@ -240,8 +240,17 @@ async function install() {
     send({ phase: 'installing', text: 'Installing…', done: total, total })
     const unpacked = path.join(work, 'unpacked')
     fs.mkdirSync(unpacked)
-    if (isWin) await run('tar', ['-xf', zipPath, '-C', unpacked])
-    else await run('/usr/bin/ditto', ['-x', '-k', zipPath, unpacked])
+    // Windows tar.exe cannot open a path with letters outside the system code page (a Cyrillic user
+    // name on an English Windows), so it gets short relative names and runs inside the work folder
+    if (isWin) {
+      await run('tar', ['-xf', manifest.file, '-C', 'unpacked'], { cwd: work }).catch(async (error) => {
+        if (error instanceof Cancelled) throw error
+        log('tar failed, unpacking with PowerShell instead')
+        fs.rmSync(unpacked, { recursive: true, force: true })
+        const out = await powershell(`$ErrorActionPreference = 'Stop'; Expand-Archive -LiteralPath ${quotePs(zipPath)} -DestinationPath ${quotePs(unpacked)} -Force; 'UNPACKED'`)
+        if (!out.includes('UNPACKED')) throw new Error(`The app could not be unpacked. Send the log file: ${logFile}\n${out.trim().slice(-300)}`)
+      })
+    } else await run('/usr/bin/ditto', ['-x', '-k', zipPath, unpacked])
     const target = path.join(installDir, APP_NAME)
     fs.rmSync(target, { recursive: true, force: true })
     if (isWin) fs.cpSync(path.join(unpacked, APP_NAME), target, { recursive: true })
