@@ -180,6 +180,7 @@ class JobManager:
                 base_cut_fraction=float(settings["base_cut_pct"]) / 100.0,
                 base_plate_mm=float(settings.get("base_plate_mm", 0.0)),
                 rotation=tuple(settings["rotation"]),
+                seed=int(settings.get("seed", 42)),
                 work_dir=folder / "details",
                 progress=progress,
                 cancelled=cancel.is_set,
@@ -191,7 +192,8 @@ class JobManager:
                 status="ready",
                 outputs=outputs,
                 report=result.report,
-                settings={"engine": result.engine},  # a removed engine id becomes the real one
+                # a removed engine id becomes the real one; old edits do not fit a new model
+                settings={"engine": result.engine, "edits": []},
             )
             self._finish(job_id, "done")
         except Cancelled:

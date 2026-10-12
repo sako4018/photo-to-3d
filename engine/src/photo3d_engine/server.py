@@ -39,6 +39,7 @@ from .jobs import JobManager
 from .paths import models_dir
 from .platform.devices import available_devices
 from .platform.hardware import gpu
+from .print_prep.edits import OPERATIONS, raw_scale, to_raw
 from .projects import ProjectStore, check_settings
 from .reprint import reprint
 
@@ -60,6 +61,17 @@ class NewJob(BaseModel):
     engine: str | None = None
     height_mm: float | None = None
     remove_bg: bool | None = None
+    seed: int | None = None
+
+
+class PartEdit(BaseModel):
+    """A change to one part: a point on the printed model (mm) and how far around it."""
+
+    op: str
+    point: list[float] = Field(min_length=3, max_length=3)
+    radius_mm: float = Field(gt=0.5, le=200)
+    amount_mm: float | None = Field(default=None, gt=0, le=5)
+    strength: int | None = Field(default=None, ge=1, le=3)
 
 
 class PrintPrep(BaseModel):
@@ -264,6 +276,47 @@ def create_app(data_dir: Path, token: str, engine_id: str = DEFAULT_ENGINE) -> F
         project = store.update(project_id, settings=settings) if settings else store.get(project_id)
         result, outputs = reprint(store.folder(project_id), project)
         return store.update(project_id, status="ready", outputs=outputs, report=result.report)
+
+    def reprint_and_save(project_id: str) -> dict:
+        result, outputs = reprint(store.folder(project_id), store.get(project_id))
+        return store.update(project_id, status="ready", outputs=outputs, report=result.report)
+
+    @api.post("/projects/{project_id}/edits")
+    def add_edit(project_id: str, body: PartEdit) -> dict:
+        """Smooth, thicken, thin or remove one part of the model: seconds, no AI model."""
+        if jobs.active_for(project_id):
+            raise AppError("A job is still running for this project.", "Wait for it to end.", 409)
+        if body.op not in OPERATIONS:
+            raise AppError(
+                f"Unknown change {body.op!r}.", f"Use one of: {', '.join(OPERATIONS)}.", 422
+            )
+        project = store.get(project_id)
+        if not (project["report"] or {}).get("to_stl"):
+            project = reprint_and_save(project_id)  # older projects: learn where the model is
+        to_stl = project["report"]["to_stl"]
+        center, radius = to_raw(to_stl, body.point, body.radius_mm)
+        edit: dict = {"op": body.op, "center": center, "radius": radius}
+        if body.op in ("thicker", "thinner"):
+            edit["amount"] = (body.amount_mm or 1.0) / raw_scale(to_stl)
+        if body.op == "smooth":
+            edit["strength"] = body.strength or 2
+        before = project["settings"].get("edits", [])
+        store.update(project_id, settings={"edits": [*before, edit]})
+        try:
+            return reprint_and_save(project_id)
+        except Exception:
+            store.update(project_id, settings={"edits": before})
+            raise
+
+    @api.delete("/projects/{project_id}/edits/last")
+    def undo_edit(project_id: str) -> dict:
+        if jobs.active_for(project_id):
+            raise AppError("A job is still running for this project.", "Wait for it to end.", 409)
+        edits = store.get(project_id)["settings"].get("edits", [])
+        if not edits:
+            raise AppError("There is nothing to undo.", "", 409)
+        store.update(project_id, settings={"edits": edits[:-1]})
+        return reprint_and_save(project_id)
 
     @api.get("/projects/{project_id}/report")
     def report(project_id: str) -> dict:

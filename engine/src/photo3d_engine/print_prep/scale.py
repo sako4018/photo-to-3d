@@ -17,10 +17,15 @@ def scale_to_height(mesh: trimesh.Trimesh, height_mm: float) -> trimesh.Trimesh:
     return result
 
 
+def bed_offset(mesh: trimesh.Trimesh) -> list[float]:
+    """The move that centres the mesh on X/Y and puts its lowest point on Z=0."""
+    low, high = mesh.bounds
+    center_xy = (low[:2] + high[:2]) / 2
+    return [-float(center_xy[0]), -float(center_xy[1]), -float(low[2])]
+
+
 def place_on_bed(mesh: trimesh.Trimesh) -> trimesh.Trimesh:
     """Centre on X/Y and put the lowest point on Z=0 (the print bed)."""
     result = mesh.copy()
-    low, high = result.bounds
-    center_xy = (low[:2] + high[:2]) / 2
-    result.apply_translation([-center_xy[0], -center_xy[1], -low[2]])
+    result.apply_translation(bed_offset(mesh))
     return result

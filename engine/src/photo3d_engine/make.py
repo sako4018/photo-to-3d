@@ -17,7 +17,7 @@ from .export.stl import write_stl
 from .platform.devices import free_device_memory, pick_device
 from .preprocess.background import release_session
 from .preprocess.prepare import prepare_image
-from .print_prep.orient import rotate_90, to_z_up
+from .print_prep.orient import rotate_90, to_z_up, upright_matrix
 from .print_prep.pipeline import QUALITY_PRESETS, PrintParams, prepare_for_print
 
 
@@ -59,6 +59,7 @@ def make_stl(
     base_cut_fraction: float = 0.02,
     base_plate_mm: float = 0.0,
     rotation: tuple[int, int, int] = (0, 0, 0),
+    seed: int = 42,
     work_dir: Path | None = None,
     progress: ProgressFn | None = None,
     cancelled: CancelFn | None = None,
@@ -106,7 +107,7 @@ def make_stl(
 
         try:
             started = time.perf_counter()
-            params = {"quality": quality, "on_step": on_step}
+            params = {"quality": quality, "on_step": on_step, "seed": seed}
             raw_path = engine.run(rgba_path, work, params, progress, cancelled)
             timed("generate", started)
         finally:
@@ -127,6 +128,10 @@ def make_stl(
             base_plate_mm=base_plate_mm,
         )
         result = prepare_for_print(raw, params)
+        # maps a point picked on the STL back to raw.glb (for edits of one part)
+        result.report["to_stl"] = (
+            result.transform @ upright_matrix(engine.up_axis, rotation)
+        ).tolist()
         timed("print_prep", started)
         for name, seconds in result.timings.items():
             timings[f"  {name}"] = seconds

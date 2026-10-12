@@ -32,6 +32,8 @@ DEFAULT_SETTINGS = {
     "base_cut_pct": 2.0,
     "base_plate_mm": 0.0,  # 0 = no plate under the model
     "rotation": [0, 0, 0],  # quarter turns around x, y, z
+    "seed": 42,  # a new one makes "Recreate" give a different model from the same photo
+    "edits": [],  # changes to parts of the model, in raw-mesh coordinates (print_prep/edits.py)
 }
 STATUSES = ("empty", "ready", "error")
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024
@@ -56,6 +58,7 @@ def check_settings(options: dict) -> dict:
         "base_cut_pct": lambda v: number(v, 0, 20),
         "base_plate_mm": lambda v: number(v, 0, 10),
         "remove_bg": lambda v: isinstance(v, bool),
+        "seed": lambda v: isinstance(v, int) and not isinstance(v, bool) and 0 <= v < 2**31,
         "rotation": lambda v: (
             isinstance(v, list) and len(v) == 3 and all(isinstance(t, int) for t in v)
         ),

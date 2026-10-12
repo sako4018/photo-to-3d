@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -300,3 +301,109 @@ def test_removing_a_model_without_an_own_copy_is_refused(client):
     assert reply.status_code == 404 and reply.json()["hint"]
     row = next(item for item in client.get("/engines").json() if item["id"] == "dummy")
     assert row["own_copy"] is False
+
+
+def test_edits_change_one_part_and_can_be_undone(client, photo_bytes):
+    project_id, _ = make_model(client, photo_bytes)
+    project = client.get(f"/projects/{project_id}").json()
+    assert len(project["report"]["to_stl"]) == 4
+    width, _, height = project["report"]["size_mm"]
+
+    # the top of the figure (an ear tip area) is around the top centre of the model
+    top = [0.0, 0.0, height - 1]
+    thicker = client.post(
+        f"/projects/{project_id}/edits",
+        json={"op": "thicker", "point": top, "radius_mm": 12, "amount_mm": 2},
+    )
+    assert thicker.status_code == 200, thicker.text
+    edited = thicker.json()
+    assert len(edited["settings"]["edits"]) == 1
+    assert edited["report"]["watertight"] is True
+
+    smoothed = client.post(
+        f"/projects/{project_id}/edits", json={"op": "smooth", "point": top, "radius_mm": 10}
+    ).json()
+    assert len(smoothed["settings"]["edits"]) == 2
+
+    # edits stay with the model when the height changes
+    taller = client.post(f"/projects/{project_id}/print-prep", json={"height_mm": 80}).json()
+    assert len(taller["settings"]["edits"]) == 2
+    # 80 mm is the height without the edits; the thicker top adds a little on top of it
+    assert 80 < taller["report"]["size_mm"][2] < 86
+
+    undone = client.delete(f"/projects/{project_id}/edits/last").json()
+    assert len(undone["settings"]["edits"]) == 1
+    client.delete(f"/projects/{project_id}/edits/last")
+    assert client.delete(f"/projects/{project_id}/edits/last").status_code == 409
+
+
+def test_edits_check_their_values(client, photo_bytes):
+    project_id, _ = make_model(client, photo_bytes)
+    bad = [
+        {"op": "melt", "point": [0, 0, 10], "radius_mm": 5},
+        {"op": "smooth", "point": [0, 0], "radius_mm": 5},
+        {"op": "smooth", "point": [0, 0, 10], "radius_mm": 0},
+        {"op": "thicker", "point": [0, 0, 10], "radius_mm": 5, "amount_mm": 50},
+    ]
+    for body in bad:
+        assert client.post(f"/projects/{project_id}/edits", json=body).status_code == 422, body
+
+
+def test_a_new_model_gets_a_new_seed_and_forgets_old_edits(client, photo_bytes):
+    project_id, _ = make_model(client, photo_bytes)
+    client.post(
+        f"/projects/{project_id}/edits", json={"op": "smooth", "point": [0, 0, 20], "radius_mm": 8}
+    )
+    job = client.post("/jobs", json={"project_id": project_id, "seed": 7}).json()
+    assert client.app.state.jobs.wait(job["id"])["status"] == "done"
+    project = client.get(f"/projects/{project_id}").json()
+    assert project["settings"]["seed"] == 7 and project["settings"]["edits"] == []
+
+
+def test_an_edit_on_the_top_does_not_shrink_the_rest(client, photo_bytes):
+    project_id, _ = make_model(client, photo_bytes)
+    before = client.get(f"/projects/{project_id}").json()["report"]["size_mm"]
+    top = [0.0, 0.0, before[2] - 1]
+    after = client.post(
+        f"/projects/{project_id}/edits",
+        json={"op": "thicker", "point": top, "radius_mm": 8, "amount_mm": 3},
+    ).json()["report"]["size_mm"]
+    assert after[2] > before[2] + 1  # the top grew
+    assert after[0] == pytest.approx(before[0], abs=0.5)  # the body kept its width
+
+
+def test_edits_are_cached_and_the_cache_follows_undo(client, photo_bytes):
+    project_id, _ = make_model(client, photo_bytes)
+    folder = client.app.state.store.folder(project_id) / "details"
+    point = {"point": [0.0, 0.0, 20.0], "radius_mm": 6}
+    client.post(f"/projects/{project_id}/edits", json={"op": "smooth", **point})
+    first = client.post(f"/projects/{project_id}/edits", json={"op": "thicker", **point}).json()
+    assert json.loads((folder / "edited.json").read_text())["edits"] == first["settings"]["edits"]
+    undone = client.delete(f"/projects/{project_id}/edits/last").json()
+    assert json.loads((folder / "edited.json").read_text())["edits"] == undone["settings"]["edits"]
+    client.delete(f"/projects/{project_id}/edits/last")
+    assert not (folder / "edited.json").exists()
+
+
+def test_an_edit_that_breaks_the_mesh_is_rebuilt_closed(client, photo_bytes, monkeypatch):
+    import photo3d_engine.reprint as reprint_module
+
+    project_id, _ = make_model(client, photo_bytes)
+    real = reprint_module.prepare_for_print
+    calls = []
+
+    def first_one_broken(mesh, params):
+        result = real(mesh, params)
+        calls.append(1)
+        if len(calls) == 1:
+            result.report.update(watertight=False, bodies=3)  # like a pressed-together part
+        return result
+
+    monkeypatch.setattr(reprint_module, "prepare_for_print", first_one_broken)
+    edited = client.post(
+        f"/projects/{project_id}/edits",
+        json={"op": "smooth", "point": [0.0, 0.0, 20.0], "radius_mm": 6},
+    ).json()
+    assert len(calls) == 2
+    assert edited["report"]["watertight"] is True and edited["report"]["bodies"] == 1
+    assert any("rebuilt" in note for note in edited["report"]["notes"])

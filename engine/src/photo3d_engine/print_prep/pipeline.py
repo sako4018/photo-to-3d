@@ -5,15 +5,16 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass, field
 
+import numpy as np
 import trimesh
 
 from .base_cut import NotManifoldError, cut_base
 from .base_plate import add_base_plate
 from .islands import remove_islands
-from .orient import to_z_up
+from .orient import to_z_up, upright_matrix
 from .repair import is_printable, repair
 from .report import build_report
-from .scale import place_on_bed, scale_to_height
+from .scale import bed_offset, place_on_bed, scale_to_height
 from .simplify import simplify
 from .voxel_remesh import voxel_remesh
 
@@ -43,6 +44,9 @@ class PrintParams:
     island_fraction: float = 0.01
     base_plate_mm: float = 0.0  # 0 = no plate; else a plate this thick is added under the model
     target_faces: int | None = None  # None = taken from the quality preset
+    # Height (in the input's units, after the base cut) that becomes height_mm. None = the
+    # mesh's own height. Set for edited meshes, so an edit does not rescale the whole model.
+    reference_height: float | None = None
 
 
 @dataclass
@@ -51,6 +55,9 @@ class PrintResult:
     report: dict
     timings: dict[str, float] = field(default_factory=dict)
     notes: list[str] = field(default_factory=list)
+    # 4x4 matrix from the input mesh's coordinates to the printed mesh (mm). Only scaling,
+    # turning and moving happen in the pipeline, so a picked point can be mapped back.
+    transform: np.ndarray = field(default_factory=lambda: np.eye(4))
 
 
 def small_contact_note(report: dict) -> str | None:
@@ -98,8 +105,18 @@ def prepare_for_print(raw: trimesh.Trimesh, params: PrintParams | None = None) -
         notes.append(f"mesh {reason}, rebuilt with voxel remesh")
         stage("voxel_remesh", started)
 
+    transform = np.eye(4)
+
+    def move_to_bed(mesh: trimesh.Trimesh) -> trimesh.Trimesh:
+        nonlocal transform
+        shift = np.eye(4)
+        shift[:3, 3] = bed_offset(mesh)
+        transform = shift @ transform
+        return place_on_bed(mesh)
+
     started = time.perf_counter()
     mesh = to_z_up(mesh, params.up_axis)
+    transform = upright_matrix(params.up_axis, (0, 0, 0))
     stage("orient", started)
 
     started = time.perf_counter()
@@ -115,13 +132,20 @@ def prepare_for_print(raw: trimesh.Trimesh, params: PrintParams | None = None) -
 
     # scale after the cut, so the final height is exactly height_mm
     started = time.perf_counter()
-    mesh = scale_to_height(mesh, params.height_mm)
-    mesh = place_on_bed(mesh)
+    if params.reference_height:
+        factor = params.height_mm / params.reference_height
+        mesh = mesh.copy()
+        mesh.apply_scale(factor)
+    else:
+        factor = params.height_mm / float(mesh.extents[2])
+        mesh = scale_to_height(mesh, params.height_mm)
+    transform = np.diag([factor, factor, factor, 1.0]) @ transform
+    mesh = move_to_bed(mesh)
     stage("scale", started)
 
     if params.base_plate_mm > 0:
         started = time.perf_counter()
-        mesh = place_on_bed(add_base_plate(mesh, params.base_plate_mm))
+        mesh = move_to_bed(add_base_plate(mesh, params.base_plate_mm))
         notes.append(
             f"added a {params.base_plate_mm:g} mm base plate "
             f"(total height {params.height_mm + params.base_plate_mm:g} mm)"
@@ -132,7 +156,7 @@ def prepare_for_print(raw: trimesh.Trimesh, params: PrintParams | None = None) -
     for aggressiveness in SIMPLIFY_AGGRESSIVENESS:
         simplified = simplify(mesh, target_faces, aggressiveness)
         if is_printable(simplified):
-            mesh = place_on_bed(simplified)
+            mesh = move_to_bed(simplified)
             if aggressiveness != SIMPLIFY_AGGRESSIVENESS[0]:
                 notes.append(f"simplification needed a gentler setting ({aggressiveness})")
             break
@@ -148,4 +172,4 @@ def prepare_for_print(raw: trimesh.Trimesh, params: PrintParams | None = None) -
         notes.append(contact_note)
     report["notes"] = list(notes)
 
-    return PrintResult(mesh=mesh, report=report, timings=timings, notes=notes)
+    return PrintResult(mesh=mesh, report=report, timings=timings, notes=notes, transform=transform)

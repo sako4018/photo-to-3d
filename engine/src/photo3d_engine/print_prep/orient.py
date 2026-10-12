@@ -28,3 +28,16 @@ def rotate_90(mesh: trimesh.Trimesh, axis: str, turns: int = 1) -> trimesh.Trime
         trimesh.transformations.rotation_matrix(np.pi / 2 * turns, vectors[axis])
     )
     return result
+
+
+def upright_matrix(up_axis: str, rotation) -> np.ndarray:
+    """The 4x4 matrix of to_z_up(up_axis) followed by the 90 degree turns in `rotation`."""
+    matrix = np.eye(4)
+    if up_axis == "y":
+        matrix = trimesh.transformations.rotation_matrix(np.pi / 2, [1, 0, 0]) @ matrix
+    vectors = {"x": [1, 0, 0], "y": [0, 1, 0], "z": [0, 0, 1]}
+    for axis, turns in zip("xyz", rotation, strict=True):
+        if turns % 4:
+            turn = trimesh.transformations.rotation_matrix(np.pi / 2 * turns, vectors[axis])
+            matrix = turn @ matrix
+    return matrix
