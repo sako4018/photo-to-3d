@@ -67,6 +67,7 @@ function send(state) {
 }
 
 class Cancelled extends Error {}
+const STALL_MS = 60000
 
 async function fetchOk(url, signal) {
   let response
@@ -117,31 +118,47 @@ function stopChild() {
 
 /** Downloads `url` into `dest`, reports progress and returns the SHA-256 of what was written. */
 async function downloadFile(url, dest, signal, { text, size }) {
-  const response = await fetchOk(url, signal)
-  const total = Number(response.headers.get('content-length')) || size || 0
-  const hash = createHash('sha256')
+  // a download that gets no data for a minute is stopped (a dead connection never ends by itself)
+  const stall = new AbortController()
+  let lastData = Date.now()
+  const watchdog = setInterval(() => { if (Date.now() - lastData > STALL_MS) stall.abort() }, 5000)
+  const both = AbortSignal.any([signal, stall.signal])
   const out = fs.createWriteStream(dest)
-  let done = 0
-  const started = Date.now()
-  let lastSend = 0
   try {
-    for await (const chunk of response.body) {
-      hash.update(chunk)
-      if (!out.write(chunk)) await new Promise((resolve) => out.once('drain', resolve))
-      done += chunk.length
-      const now = Date.now()
-      if (now - lastSend > 100) {
-        lastSend = now
-        const speed = done / Math.max((now - started) / 1000, 0.001)
-        send({ phase: 'downloading', text, done, total, speed, eta: (total - done) / speed })
+    const response = await fetchOk(url, both).catch((error) => {
+      if (stall.signal.aborted && !signal.aborted) throw new Error('The server did not answer. Check your connection and try again.')
+      throw error
+    })
+    const total = Number(response.headers.get('content-length')) || size || 0
+    const hash = createHash('sha256')
+    let done = 0
+    const started = Date.now()
+    let lastSend = 0
+    try {
+      for await (const chunk of response.body) {
+        lastData = Date.now()
+        hash.update(chunk)
+        if (!out.write(chunk)) await new Promise((resolve) => out.once('drain', resolve))
+        done += chunk.length
+        const now = Date.now()
+        if (now - lastSend > 100) {
+          lastSend = now
+          const speed = done / Math.max((now - started) / 1000, 0.001)
+          send({ phase: 'downloading', text, done, total, speed, eta: (total - done) / speed })
+        }
       }
+    } catch (error) {
+      if (signal.aborted) throw new Cancelled()
+      log(`download of ${url} failed after ${done} bytes: ${error.message}`)
+      throw new Error('The download was interrupted. Check your connection and try again.')
     }
-  } catch (error) {
-    if (signal.aborted) throw new Cancelled()
-    throw new Error('The download was interrupted. Check your connection and try again.')
+    await new Promise((resolve) => out.end(resolve))
+    log(`downloaded ${url}: ${done} bytes`)
+    return hash.digest('hex')
+  } finally {
+    clearInterval(watchdog)
+    out.destroy()
   }
-  await new Promise((resolve) => out.end(resolve))
-  return hash.digest('hex')
 }
 
 /** Output of a short command, or '' when it is missing or fails. */

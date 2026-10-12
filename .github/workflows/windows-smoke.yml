@@ -115,7 +115,7 @@ jobs:
           if (-not $env:REAL_MODEL) { $env:P3D_SKIP_MODEL = '1' }
           # the single downloaded file: unpacks itself and opens the installer window
           $p = Start-Process "serve\Photo-to-3D-Setup-win-x64.exe" -PassThru
-          $deadline = (Get-Date).AddMinutes(80)
+          $deadline = (Get-Date).AddMinutes($(if ($env:REAL_MODEL) { 80 } else { 30 }))
           while ((Get-Date) -lt $deadline -and -not (Test-Path shots\done.png) -and -not (Test-Path shots\error.png)) {
             Start-Sleep 5
           }
