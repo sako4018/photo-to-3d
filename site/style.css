@@ -43,29 +43,57 @@ body {
   background:
     linear-gradient(180deg, rgba(2, 3, 10, 0.25), transparent 30%, transparent 70%, rgba(2, 3, 10, 0.35));
 }
-.progress { position: fixed; top: 0; left: 0; right: 0; height: 2px; z-index: 50; }
-.progress span { display: block; height: 100%; width: 100%; background: var(--grad); transform: scaleX(0); transform-origin: left; }
-
-/* ---------- nav ---------- */
+/* ---------- nav: frosted glass, glowing edge, sliding pill, scroll progress ---------- */
 .nav {
   position: fixed; z-index: 40; top: 14px; left: 50%; transform: translateX(-50%);
   width: min(960px, calc(100% - 24px));
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
   padding: 10px 12px 10px 18px;
-  background: rgba(7, 10, 24, 0.92); border: 1px solid var(--line); border-radius: 999px;
+  background: linear-gradient(180deg, rgba(20, 28, 60, 0.55), rgba(7, 10, 24, 0.62));
+  -webkit-backdrop-filter: blur(18px) saturate(1.6); backdrop-filter: blur(18px) saturate(1.6);
+  border-radius: 999px;
+  box-shadow: 0 10px 40px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.04) inset, 0 1px 0 rgba(255, 255, 255, 0.08) inset;
   animation: drop-in 0.9s cubic-bezier(.2,.8,.2,1) both;
+  transition: width 0.45s cubic-bezier(.2,.8,.2,1), padding 0.45s cubic-bezier(.2,.8,.2,1), top 0.45s cubic-bezier(.2,.8,.2,1), box-shadow 0.45s;
+}
+.nav::before {                     /* glowing gradient edge, slowly moving */
+  content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none;
+  background: linear-gradient(110deg, rgba(79, 140, 255, 0.7), rgba(255, 255, 255, 0.08) 30%, rgba(255, 255, 255, 0.06) 60%, rgba(40, 215, 232, 0.75));
+  background-size: 220% 100%;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  animation: edge-flow 9s linear infinite alternate;
+}
+@keyframes edge-flow { to { background-position: 100% 0; } }
+.nav.scrolled {
+  top: 8px; width: min(780px, calc(100% - 24px)); padding: 6px 8px 6px 16px;
+  box-shadow: 0 14px 44px -10px rgba(0, 0, 0, 0.8), 0 0 30px -6px rgba(79, 140, 255, 0.35), 0 1px 0 rgba(255, 255, 255, 0.08) inset;
+}
+.progress {
+  position: absolute; left: 26px; right: 26px; bottom: -1px; height: 2px; pointer-events: none;
+  border-radius: 2px; overflow: hidden; opacity: 0; transition: opacity 0.4s;
+}
+.nav.scrolled .progress { opacity: 1; }
+.progress span {
+  display: block; height: 100%; width: 100%; background: var(--grad);
+  transform: scaleX(0); transform-origin: left; box-shadow: 0 0 10px rgba(40, 215, 232, 0.9);
 }
 @keyframes drop-in { from { opacity: 0; transform: translate(-50%, -24px); } }
 .brand { color: var(--fg); text-decoration: none; font-weight: 700; letter-spacing: -0.01em; display: flex; align-items: center; gap: 10px; }
-.brand-mark {
-  width: 18px; height: 18px; border-radius: 5px; background: var(--grad);
-  transform: rotate(45deg); box-shadow: 0 0 18px rgba(79, 140, 255, 0.7);
-  animation: spin-mark 8s linear infinite;
+.nav-links { position: relative; display: flex; gap: 4px; font-size: 0.92rem; }
+.nav-links a { position: relative; z-index: 1; padding: 6px 14px; border-radius: 999px; color: var(--muted); text-decoration: none; transition: color 0.25s; }
+.nav-links a:hover, .nav-links a.active { color: var(--fg); }
+.nav-pill {                        /* moves under the active or hovered link */
+  position: absolute; top: 0; bottom: 0; left: var(--pill-x, 0); width: var(--pill-w, 0);
+  border-radius: 999px; opacity: 0;
+  background: linear-gradient(180deg, rgba(120, 160, 255, 0.2), rgba(40, 215, 232, 0.1));
+  box-shadow: 0 0 0 1px rgba(140, 190, 255, 0.22) inset, 0 0 18px -4px rgba(79, 140, 255, 0.6);
+  transition: left 0.4s cubic-bezier(.2,.8,.2,1), width 0.4s cubic-bezier(.2,.8,.2,1), opacity 0.3s;
 }
-@keyframes spin-mark { to { transform: rotate(405deg); } }
-.nav-links { display: flex; gap: 22px; font-size: 0.92rem; }
-.nav-links a { color: var(--muted); text-decoration: none; transition: color 0.2s; }
-.nav-links a:hover { color: var(--fg); }
+.nav-pill.on { opacity: 1; }
+.nav-download { box-shadow: 0 0 22px -4px rgba(79, 140, 255, 0.75); }
+.nav-download:hover { box-shadow: 0 0 30px -2px rgba(40, 215, 232, 0.85); }
+.btn-icon { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
 /* ---------- buttons ---------- */
 .btn {

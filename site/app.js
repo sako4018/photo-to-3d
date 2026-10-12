@@ -91,6 +91,43 @@
   window.addEventListener("resize", schedule);
   updateScroll();
 
+  // ---------- nav: smaller after scrolling, pill under the current section ----------
+  var nav = document.querySelector(".nav");
+  var pill = document.querySelector(".nav-pill");
+  var navLinks = Array.prototype.slice.call(document.querySelectorAll(".nav-links a"));
+  var current = null, hovered = null;
+
+  function placePill() {
+    var link = hovered || current;
+    if (!link) { pill.classList.remove("on"); return; }
+    pill.style.setProperty("--pill-x", link.offsetLeft + "px");
+    pill.style.setProperty("--pill-w", link.offsetWidth + "px");
+    pill.classList.add("on");
+  }
+  function updateNav(dy, y) {
+    nav.classList.toggle("scrolled", y > 40);
+    var mark = window.innerHeight * 0.4, found = null;
+    navLinks.forEach(function (link) {
+      var section = document.querySelector(link.getAttribute("href"));
+      if (section) {
+        var r = section.getBoundingClientRect();
+        if (r.top <= mark && r.bottom > mark) { found = link; }
+      }
+    });
+    if (found !== current) {
+      if (current) { current.classList.remove("active"); }
+      current = found;
+      if (current) { current.classList.add("active"); }
+      placePill();
+    }
+  }
+  navLinks.forEach(function (link) {
+    link.addEventListener("mouseenter", function () { hovered = link; placePill(); });
+    link.addEventListener("mouseleave", function () { hovered = null; placePill(); });
+  });
+  scrollHooks.push(updateNav);
+  updateNav(0, window.scrollY);
+
   document.querySelectorAll(".scan").forEach(function (m) {
     var setH = function () { m.style.setProperty("--scan-h", (m.clientHeight - 3) + "px"); };
     setH(); new ResizeObserver(setH).observe(m);
