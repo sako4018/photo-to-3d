@@ -1,23 +1,30 @@
-// Turns every download button on. First choice: the installer built next to this page
+// Turns every download button on. First choice: the installers built next to this page
 // (downloads/latest.json, see scripts/build-release.sh). Second choice: the latest GitHub Release.
+// data-download="mac" or "win" is a button for that system; an empty data-download follows the visitor's system.
 (function () {
   var buttons = document.querySelectorAll("[data-download]");
   var INSTALLERS = {
-    mac: { href: "downloads/Photo-to-3D-Installer-arm64.dmg", label: "Download for Mac" },
-    win: { href: "downloads/Photo-to-3D-Setup-win-x64.exe", label: "Download for Windows" }
+    mac: { href: "downloads/Photo-to-3D-Installer-arm64.dmg", label: "Download for Mac", asset: /\.dmg$/i },
+    win: { href: "downloads/Photo-to-3D-Setup-win-x64.exe", label: "Download for Windows", asset: /\.exe$/i }
   };
   // Mac is the default; Windows only when the browser says so.
   var mine = /Windows/i.test(navigator.userAgent) ? "win" : "mac";
-  var other = mine === "win" ? "mac" : "win";
 
-  function enable(href, label, name) {
+  function platformOf(button) {
+    return button.getAttribute("data-download") || mine;
+  }
+
+  // links: { mac: href, win: href }, only for the systems that have a file
+  function enable(links, sub) {
     buttons.forEach(function (button) {
-      button.href = href;
+      var platform = platformOf(button);
+      if (!links[platform]) { return; }
+      button.href = links[platform];
       button.classList.add("ready");
-      var sub = button.querySelector(".btn-sub");
-      if (sub) { sub.textContent = label; }
+      var subText = button.querySelector(".btn-sub");
+      if (subText) { subText.textContent = sub; }
       var text = button.querySelector(".btn-label");
-      if (text && name) { text.textContent = name; }
+      if (text) { text.textContent = INSTALLERS[platform].label; }
     });
   }
 
@@ -28,12 +35,16 @@
         return response.json();
       })
       .then(function (release) {
-        var dmg = null;
-        for (var i = 0; i < release.assets.length; i++) {
-          if (/\.dmg$/i.test(release.assets[i].name)) { dmg = release.assets[i]; break; }
-        }
-        if (!dmg) { throw new Error("no dmg"); }
-        enable(dmg.browser_download_url, release.tag_name);
+        var links = {};
+        release.assets.forEach(function (asset) {
+          for (var platform in INSTALLERS) {
+            if (!links[platform] && INSTALLERS[platform].asset.test(asset.name)) {
+              links[platform] = asset.browser_download_url;
+            }
+          }
+        });
+        if (!links.mac && !links.win) { throw new Error("no installer"); }
+        enable(links, release.tag_name);
       });
   }
 
@@ -44,12 +55,12 @@
     })
     .then(function (manifest) {
       var files = manifest.files || {};
-      if (!files[mine]) { throw new Error("no build for this system"); }
-      enable(INSTALLERS[mine].href, "v" + manifest.version + " · installer", INSTALLERS[mine].label);
-      var note = document.getElementById("other-systems");
-      if (note && files[other]) {
-        note.innerHTML = 'Other system: <a href="' + INSTALLERS[other].href + '">' + INSTALLERS[other].label.replace("Download for ", "") + '</a>';
+      var links = {};
+      for (var platform in INSTALLERS) {
+        if (files[platform]) { links[platform] = INSTALLERS[platform].href; }
       }
+      if (!links.mac && !links.win) { throw new Error("no build"); }
+      enable(links, "v" + manifest.version + " · installer");
     })
     .catch(function () {
       return fromGithub();

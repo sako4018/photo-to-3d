@@ -233,6 +233,7 @@ h1 { text-transform: uppercase; font-weight: 800; letter-spacing: 0.005em; }
 .cta-final { text-align: center; padding-bottom: 20px; }
 .cta-final h2 { margin-bottom: 24px; }
 .cta-final .small { margin-top: 16px; }
+.download-buttons { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; }
 footer { text-align: center; color: var(--muted); font-size: 0.9rem; padding: 80px 16px 40px; }
 
 /* ---------- reveal ---------- */
