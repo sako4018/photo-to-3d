@@ -17,7 +17,7 @@
   .fill { height: 100%; width: 0; background: var(--accent); transition: width .12s linear; }
   .bar.busy .fill { width: 30%; animation: slide 1.1s ease-in-out infinite alternate; }
   @keyframes slide { from { margin-left: 0 } to { margin-left: 70% } }
-  .detail { margin-top: 8px; color: var(--muted); font-variant-numeric: tabular-nums; min-height: 16px; }
+  .detail { white-space: pre-line; margin-top: 8px; color: var(--muted); font-variant-numeric: tabular-nums; min-height: 16px; }
   .error { color: var(--bad); }
   .buttons { margin-top: auto; display: flex; justify-content: flex-end; gap: 8px; }
   button { font: inherit; padding: 6px 16px; border-radius: 6px; border: 1px solid #3a3a42; background: #26262c; color: var(--fg); }

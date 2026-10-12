@@ -14,15 +14,18 @@ function show(ids) {
 window.installer.onState((state) => {
   $('status').textContent = state.text
   $('status').className = 'status' + (state.phase === 'error' ? ' error' : '')
-  const busy = ['connecting', 'installing', 'verifying', 'engine'].includes(state.phase)
+  const busy = ['connecting', 'system', 'runtime', 'installing', 'verifying', 'engine'].includes(state.phase)
   $('bar').className = 'bar' + (busy ? ' busy' : '')
   if (state.phase === 'downloading') {
     $('fill').style.width = `${Math.min(100, (state.done / state.total) * 100)}%`
     const percent = Math.floor((state.done / state.total) * 100)
     $('detail').textContent = `${percent}% · ${mb(state.done)} of ${mb(state.total)} MB · ${mb(state.speed)} MB/s · ${time(state.eta)}`
+  } else if (state.phase === 'model') {
+    $('fill').style.width = `${state.percent}%`
+    $('detail').textContent = `${state.percent}% of about 7.9 GB`
   } else if (state.phase === 'done') {
     $('fill').style.width = '100%'
-    $('detail').textContent = state.target
+    $('detail').textContent = [state.note, state.target].filter(Boolean).join('\n')
     target = state.target
   } else {
     $('detail').textContent = state.detail || ''

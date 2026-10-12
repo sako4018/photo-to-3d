@@ -73,7 +73,7 @@ put_app() {
 put_installer() {
   local res="$1"
   mkdir -p "$res/app"
-  cp "$ROOT/installer/"{main.js,preload.js,index.html,renderer.js,package.json} "$res/app/"
+  cp "$ROOT/installer/"{main.js,steps.js,preload.js,index.html,renderer.js,package.json} "$res/app/"
   printf '{ "baseUrl": "%s" }\n' "$BASE_URL" > "$res/app/config.json"
 }
 
