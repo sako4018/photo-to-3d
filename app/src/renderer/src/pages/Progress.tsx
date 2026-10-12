@@ -5,9 +5,9 @@ import { useEngineImage } from '../hooks/useEngineImage'
 import { estimateRemaining, progressLine } from '../lib/format'
 import { stepRows } from '../lib/job-steps'
 import { useStore } from '../store'
+import { Icon } from '../components/Icon'
 import './Progress.css'
 
-const MARKS = { done: '✓', active: '●', waiting: '○' } as const
 
 /** Progress while the 3D model is made (screen P1). */
 export function Progress({ project, job }: { project: Project; job: Job }): React.JSX.Element {
@@ -44,7 +44,7 @@ export function Progress({ project, job }: { project: Project; job: Job }): Reac
         <ul className="step-list">
           {stepRows(job).map((row) => (
             <li key={row.label} className={row.state}>
-              <span className="mark">{MARKS[row.state]}</span>
+              <span className="mark">{row.state === 'done' ? <Icon name="check" size={14} /> : <span className="dot" />}</span>
               {row.label}
               {row.detail && <span className="step-detail"> · {row.detail}</span>}
             </li>

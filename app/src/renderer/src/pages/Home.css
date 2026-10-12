@@ -1,21 +1,46 @@
 .home {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  align-items: center;
+  justify-content: center;
+  gap: 40px;
   height: 100%;
+  padding: 44px 40px 32px;
+  -webkit-app-region: drag;
+}
+
+.home > * {
+  -webkit-app-region: no-drag;
 }
 
 .drop-zone {
-  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
   gap: var(--space);
-  min-height: 240px;
-  border: 2px dashed var(--border);
-  border-radius: var(--radius);
+  width: 100%;
+  max-width: 560px;
+  padding: 44px 32px;
+  border: 1.5px dashed var(--border);
+  border-radius: calc(var(--radius) * 1.5);
+  background: var(--surface);
   text-align: center;
+}
+
+.drop-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 4px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--accent-ink);
+}
+
+.drop-zone h1 {
+  margin: 0;
 }
 
 .drop-zone p {
@@ -24,6 +49,7 @@
 
 .drop-formats {
   font-size: 12px;
+  color: var(--text-faint);
 }
 
 .drop-status {
@@ -38,20 +64,25 @@
 .tips {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+  gap: 24px;
+  width: 100%;
+  max-width: 720px;
 }
 
 .tip {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 14px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
 }
 
-.tip span {
-  font-size: 13px;
+.tip-icon {
+  display: flex;
+  margin-bottom: 4px;
+  color: var(--accent-ink);
+}
+
+.tip span:last-child {
+  font-size: 12px;
+  line-height: 1.45;
   color: var(--text-muted);
 }

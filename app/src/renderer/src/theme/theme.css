@@ -1,23 +1,80 @@
-/* Theme tokens. Dark only, orange accent with dark text on it
-   (docs/phase-2-app.md, section 1). */
+/* Theme tokens. Follows the system: dark and light, one green accent with dark text on it
+   (docs/phase-2-app.md, section 1). Names stay stable; screens only use these variables. */
 :root {
-  color-scheme: dark;
+  color-scheme: light dark;
   --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
   --font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
 
+  /* type scale */
+  --text-label: 11px;
+  --text-body: 13px;
+  --text-title: 15px;
+  --text-display: 22px;
+
+  /* shape and rhythm */
+  --radius-sm: 8px;
+  --radius: 12px;
+  --space: 8px;
+  --sidebar-width: 232px;
+  --topbar-height: 52px;
+  --panel-width: 288px;
+  --ease: 140ms ease;
+
+  /* dark (default) */
   --bg: #161618;
   --surface: #1f1f22;
   --surface-raised: #29292d;
+  --surface-hover: #2f2f34;
+  --glass: rgba(34, 34, 38, 0.72);
+  --sidebar-bg: #1b1b1e;
   --border: #34343a;
+  --border-soft: rgba(255, 255, 255, 0.07);
   --text: #f2f2f4;
   --text-muted: #9a9aa2;
-  --accent: #f2a65a;
-  --accent-text: #1a1206;
+  --text-faint: #6c6c74;
+  --accent: #3ecf8e;
+  --accent-hover: #5bdba2;
+  --accent-ink: #3ecf8e; /* the accent used as text or icon colour */
+  --accent-text: #04180f; /* text on top of the accent */
   --success: #4cc38a;
   --warning: #f5c451;
   --danger: #ff6b60;
+  --shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
 
-  --radius: 10px;
-  --space: 8px;
-  --sidebar-width: 220px;
+  /* 3D scene (read by Viewer3D) */
+  --scene-bg: #161618;
+  --scene-plate: #222226;
+  --scene-model: #d4d4da;
+  --scene-grid-cell: #34343a;
+  --scene-grid-section: #4a4a52;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f4f4f6;
+    --surface: #ffffff;
+    --surface-raised: #ececf0;
+    --surface-hover: #e4e4e9;
+    --glass: rgba(255, 255, 255, 0.78);
+    --sidebar-bg: #eaeaee;
+    --border: #d6d6dc;
+    --border-soft: rgba(0, 0, 0, 0.08);
+    --text: #1c1c1f;
+    --text-muted: #62626b;
+    --text-faint: #8e8e97;
+    --accent: #34c47f;
+    --accent-hover: #2bb372;
+    --accent-ink: #12794a; /* darker, so green text passes contrast on white */
+    --accent-text: #04180f;
+    --success: #1f9d63;
+    --warning: #a87400;
+    --danger: #d93a2e;
+    --shadow: 0 8px 28px rgba(0, 0, 0, 0.14);
+
+    --scene-bg: #ebebef;
+    --scene-plate: #d9d9df;
+    --scene-model: #f1f1f4;
+    --scene-grid-cell: #c9c9d0;
+    --scene-grid-section: #aeaeb7;
+  }
 }

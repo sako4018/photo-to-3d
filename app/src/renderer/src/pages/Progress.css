@@ -1,4 +1,6 @@
 .progress {
+  padding: 44px 24px 24px;
+  -webkit-app-region: drag;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -11,18 +13,17 @@
   align-items: center;
   width: 420px;
   max-width: 100%;
-  padding: 28px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
+  padding: 8px;
+  -webkit-app-region: no-drag;
 }
 
 .progress-photo {
-  width: 160px;
-  height: 160px;
-  margin-bottom: 16px;
-  border-radius: var(--radius);
-  background: var(--bg);
+  width: 176px;
+  height: 176px;
+  margin-bottom: 20px;
+  border-radius: calc(var(--radius) * 1.5);
+  background: var(--surface);
+  box-shadow: var(--shadow);
   overflow: hidden;
 }
 
@@ -71,8 +72,30 @@
 }
 
 .step-list .mark {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 22px;
+  vertical-align: middle;
+}
+
+.step-list .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid var(--text-faint);
+}
+
+.step-list li.active .dot {
+  border-color: var(--accent);
+  background: var(--accent);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.35;
+  }
 }
 
 .step-detail {

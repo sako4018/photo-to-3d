@@ -4,9 +4,10 @@ import { engineClient, EngineError, type EngineInfoRow } from '../api/engine-cli
 import { canDownload, checkComputer } from '../lib/computer-check'
 import { estimateRemaining, formatDownloaded, formatRemaining } from '../lib/format'
 import { useStore } from '../store'
+import { Icon, type IconName } from '../components/Icon'
 import './Setup.css'
 
-const MARKS = { ok: '✓', warn: '⚠', bad: '✕' } as const
+const MARKS: Record<'ok' | 'warn' | 'bad', IconName> = { ok: 'check', warn: 'warn', bad: 'cross' }
 
 /** First launch (screen O1): computer check and model download on one screen. */
 export function Setup({ model, health }: { model: EngineInfoRow; health: HealthResponse }): React.JSX.Element {
@@ -52,7 +53,9 @@ export function Setup({ model, health }: { model: EngineInfoRow; health: HealthR
         <ul className="checks">
           {rows.map((row) => (
             <li key={row.label} className={row.level}>
-              <span className="mark">{MARKS[row.level]}</span>
+              <span className="mark">
+                <Icon name={MARKS[row.level]} size={16} />
+              </span>
               <span className="check-label">{row.label}</span>
               <span className="check-value">{row.value}</span>
               {row.level !== 'ok' && <span className="check-note">{row.note}</span>}

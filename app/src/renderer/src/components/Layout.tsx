@@ -7,8 +7,20 @@ import { formatDay } from '../lib/format'
 import { isActive } from '../lib/job-steps'
 import { useStore } from '../store'
 import { EngineBadge } from './EngineBadge'
+import { Icon } from './Icon'
 import { RenameInput } from './RenameInput'
 import './Layout.css'
+
+/** "Today" and "Earlier": the list keeps the order it has, only the headings are added. */
+function groupByDay(projects: Project[]): { label: string; items: Project[] }[] {
+  const today = new Date().toDateString()
+  const isToday = (project: Project): boolean => new Date(project.created).toDateString() === today
+  const groups = [
+    { label: 'Today', items: projects.filter(isToday) },
+    { label: 'Earlier', items: projects.filter((project) => !isToday(project)) }
+  ]
+  return groups.filter((group) => group.items.length > 0)
+}
 
 function subtitle(project: Project, percent: number | null): string {
   if (percent !== null) return `Creating · ${percent}%`
@@ -77,6 +89,7 @@ export function Layout(): React.JSX.Element {
   const notice = useStore((state) => state.notice)
   const { addPath, choose } = useAddPhoto()
   const [dragging, setDragging] = useState(false)
+  const groups = groupByDay(projects)
 
   // ⌘N (File > New from Photo) goes to the start screen and opens the file dialog.
   useEffect(
@@ -113,17 +126,22 @@ export function Layout(): React.JSX.Element {
     >
       <aside className="sidebar">
         <button className="new-photo" onClick={() => navigate('/')}>
-          ＋ New from photo
+          <Icon name="plus" /> New from photo
         </button>
         <nav>
-          {projects.map((project) => (
-            <ProjectRow key={project.id} project={project} />
+          {groups.map((group) => (
+            <div key={group.label} className="group">
+              <div className="group-label">{group.label}</div>
+              {group.items.map((project) => (
+                <ProjectRow key={project.id} project={project} />
+              ))}
+            </div>
           ))}
         </nav>
         <div className="sidebar-bottom">
           <EngineBadge />
-          <button className="link" onClick={() => void window.api.app.openSettings()}>
-            Settings
+          <button className="ghost settings-button" onClick={() => void window.api.app.openSettings()}>
+            <Icon name="settings" /> Settings
           </button>
         </div>
       </aside>

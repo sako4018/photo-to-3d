@@ -1,5 +1,5 @@
 import { join } from 'path'
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, nativeTheme } from 'electron'
 
 let mainWindow: BrowserWindow | null = null
 let settingsWindow: BrowserWindow | null = null
@@ -30,7 +30,7 @@ export function createMainWindow(): BrowserWindow {
     show: false,
     // Mac: the traffic lights sit on the dark window. Windows keeps its own title bar buttons.
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
-    backgroundColor: '#161618',
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#161618' : '#f4f4f6',
     icon: join(app.getAppPath(), 'build', 'icon.png'), // Windows and Linux; the Mac icon is the Dock one
     webPreferences
   })
@@ -64,7 +64,7 @@ export function openSettingsWindow(): void {
     fullscreenable: false,
     show: false,
     title: 'Settings',
-    backgroundColor: '#161618',
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#161618' : '#f4f4f6',
     webPreferences
   })
   win.setMenuBarVisibility(false)

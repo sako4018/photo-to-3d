@@ -28,7 +28,7 @@
   justify-content: space-between;
   gap: 16px;
   padding: 10px 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-soft);
 }
 
 .pane .row > span:first-child {
@@ -47,7 +47,7 @@
 .pane .input-unit input {
   padding: 5px 8px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: var(--surface);
   color: var(--text);
   font: inherit;
@@ -71,9 +71,10 @@
 .pane .segmented {
   display: grid;
   grid-template-columns: repeat(3, auto);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  overflow: hidden;
+  padding: 2px;
+  gap: 2px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
 }
 
 .pane .segmented button {
@@ -83,8 +84,8 @@
 }
 
 .pane .segmented button.selected {
-  background: var(--surface-raised);
-  color: var(--accent);
+  background: var(--surface);
+  color: var(--accent-ink);
 }
 
 .pane .buttons {

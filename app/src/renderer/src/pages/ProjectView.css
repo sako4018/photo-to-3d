@@ -5,7 +5,15 @@
   justify-content: center;
   gap: 8px;
   height: 100%;
+  padding: 44px 24px 24px;
   text-align: center;
+  -webkit-app-region: drag;
+}
+
+.notice button,
+.notice details,
+.notice a {
+  -webkit-app-region: no-drag;
 }
 
 .notice p {
