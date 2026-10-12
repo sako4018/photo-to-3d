@@ -14,10 +14,15 @@ concurrency:
 
 jobs:
   engine:
-    name: engine (ruff and tests)
-    # Apple Silicon runner. macos-14 is deprecated and goes away on 2026-11-02.
-    runs-on: macos-15
-    timeout-minutes: 30
+    name: engine on ${{ matrix.os }} (ruff and tests)
+    # Apple Silicon runner (macos-14 is deprecated and goes away on 2026-11-02) and Windows,
+    # where uv installs the CUDA build of PyTorch, the same one the installer sets up.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
     defaults:
       run:
         working-directory: engine
@@ -83,4 +88,4 @@ jobs:
 
       - name: Check the installer scripts
         working-directory: installer
-        run: node --check main.js && node --check preload.js && node --check renderer.js
+        run: node --check main.js && node --check preload.js && node --check renderer.js && node --test steps.test.js
