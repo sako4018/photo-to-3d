@@ -6,6 +6,9 @@ import sys
 
 import pytest
 
+# Windows reports a stop by Ctrl+C (SIGINT) as STATUS_CONTROL_C_EXIT instead of -2
+CTRL_C_EXIT = 0xC000013A
+
 
 def start(tmp_path, *extra):
     return subprocess.Popen(
@@ -35,7 +38,7 @@ def test_stops_when_stdin_closes(tmp_path):
         server.stdin.close()  # what happens when the app dies
 
         # it ended by itself (uvicorn reports a stop by SIGINT as exit code -2, like Ctrl+C)
-        assert server.wait(timeout=20) in (0, -2)
+        assert server.wait(timeout=20) in (0, -2, CTRL_C_EXIT)
     finally:
         if server.poll() is None:
             server.kill()
@@ -53,6 +56,10 @@ def test_keeps_running_without_the_option(tmp_path):
         server.wait()
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Windows has no SIGTERM: terminate() ends the process at once (the app uses taskkill)",
+)
 def test_stops_on_sigterm_while_the_app_is_connected(tmp_path):
     """A connected /ws client that sends nothing must not keep the server from stopping."""
     from websockets.sync.client import connect

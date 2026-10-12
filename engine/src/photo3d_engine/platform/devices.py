@@ -54,5 +54,7 @@ def free_device_memory(device: str) -> None:
         torch.cuda.empty_cache()
     elif device == "mps":
         mps = getattr(torch, "mps", None)
-        if mps is not None and hasattr(mps, "empty_cache"):
+        backend = getattr(torch.backends, "mps", None)
+        # torch.mps.empty_cache() raises on computers without an Apple GPU (Windows, Linux)
+        if mps is not None and hasattr(mps, "empty_cache") and backend and backend.is_available():
             mps.empty_cache()
