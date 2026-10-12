@@ -116,18 +116,23 @@
   disposables.push(gridGeo, gridMat);
 
   // ---------- energy ribbons ----------
-  var RIB_SEGS = lite ? 600 : 1600;     // dense strips: no per-segment teeth where the ribbon twists
-  var ribbonVert = [
-    "uniform float uTime; uniform float uSeed; uniform float uWidth; uniform float uScroll; uniform float uVel; uniform float uIntro;",
+  var RIB_SEGS = lite ? 840 : 2240;     // dense strips: no per-segment teeth where the ribbon twists
+  var U_EXT = 0.2;                      // the path runs this far past both screen edges, so a thread never ends in view
+  var pathGlsl = [
+    "uniform float uTime; uniform float uSeed; uniform float uScroll; uniform float uVel; uniform float uIntro;",
     "attribute float aU; attribute float aV;",
-    "varying float vU; varying float vV; varying vec3 vN; varying vec3 vView; varying float vSlope;",
     "vec3 pathAt(float u, float t) {",
     "  float sc = uScroll * 7.0;",
     "  float x = (u - 0.5) * 40.0 + sin(u * 5.0 + t * 0.22 + uSeed + sc) * 3.2;",
     "  float y = 4.4 - (1.0 - uIntro) * 4.5 + sin(u * 7.0 - t * 0.28 + uSeed * 2.0 - sc * 0.8) * (2.4 + uVel * 0.6) + sin(u * 13.0 + t * 0.17 + uSeed + sc) * 0.6;",
     "  float z = -12.0 + sin(u * 4.0 + t * 0.19 + uSeed * 3.0) * 5.0 + cos(u * 9.0 - t * 0.21 + uSeed) * 1.4;",
     "  return vec3(x, y, z);",
-    "}",
+    "}"
+  ].join("\n");
+  var ribbonVert = [
+    pathGlsl,
+    "uniform float uWidth;",
+    "varying float vU; varying float vV; varying vec3 vN; varying vec3 vView; varying float vSlope;",
     "void main() {",
     "  float t = uTime; float e = 0.004;",
     "  vec3 p = pathAt(aU, t);",
@@ -136,7 +141,7 @@
     "  vec3 ref = vec3(0.0, cos(tw), sin(tw));",
     "  vec3 side = normalize(cross(tang, ref));",
     "  vec3 nrm = normalize(cross(tang, side));",
-    "  float prof = (0.30 + 0.70 * sin(aU * 3.14159)) * (0.72 + 0.28 * sin(aU * 11.0 + t * 0.5 + uSeed));",
+    "  float prof = (0.30 + 0.70 * sin(clamp(aU, 0.0, 1.0) * 3.14159)) * (0.72 + 0.28 * sin(aU * 11.0 + t * 0.5 + uSeed));",
     "  vec3 pos = p + side * aV * uWidth * prof;",
     "  vU = aU; vV = aV;",
     "  vec4 c0 = projectionMatrix * viewMatrix * vec4(pathAt(aU - e, t), 1.0);",
@@ -155,16 +160,49 @@
     "  vec3 col = k < 1.0 ? mix(blue, cyan, k) : (k < 2.0 ? mix(cyan, indigo, k - 1.0) : mix(indigo, blue, k - 2.0));",
     "  float core = pow(1.0 - abs(vV), 3.5);",
     "  float silk = 0.88 + 0.12 * sin(vV * 7.0 + vU * 18.0 - uTime * 1.3);",   // low frequency: no moire when the ribbon twists
-    "  float ends = smoothstep(0.0, 0.14, vU) * smoothstep(1.0, 0.86, vU);",
+    "  float ends = smoothstep(" + (-U_EXT).toFixed(2) + ", " + (0.06 - U_EXT).toFixed(2) + ", vU) * smoothstep(" + (1 + U_EXT).toFixed(2) + ", " + (0.94 + U_EXT).toFixed(2) + ", vU);",
     "  float vFace = abs(dot(normalize(vN), normalize(vView)));",
     "  float edge = 0.62 + 1.4 * pow(1.0 - vFace, 2.0);",   // brighter when the ribbon turns edge-on
     "  float d = fract(vU - uTime * uPulse - uSeed * 0.37); d = d > 0.5 ? d - 1.0 : d;",
     "  float boost = 1.0 + (1.8 + uVel * 1.2) * exp(-d * d * 220.0);",     // a light travelling along the ribbon
     "  float a = core * silk * ends * edge * uOpacity * uIntro * smoothstep(0.10, 0.40, vFace) * smoothstep(0.25, 1.2, vSlope);",   // edge-on slivers fade out: they only show per-segment combing
-    "  float lw = max(0.07, fwidth(vV) * 1.7);",                               // core half-width, never under ~1.7 screen pixels
-    "  float line = exp(-(vV * vV) / (lw * lw));",                             // neon: a thin white core, smooth at pixel level
-    "  col = mix(col, vec3(1.0), line * 0.92);",
-    "  gl_FragColor = vec4(col * boost, a + line * 0.35 * ends * uOpacity * smoothstep(0.10, 0.40, vFace) * smoothstep(0.25, 1.2, vSlope));",
+    "  gl_FragColor = vec4(col * boost, a);",
+    "}"
+  ].join("\n");
+
+  // The neon thread: a strip along the same path that always faces the camera,
+  // so it never collapses where the ribbon twists and stays one unbroken line.
+  var threadVert = [
+    pathGlsl,
+    "uniform float uThread;",
+    "varying float vU; varying float vV;",
+    "void main() {",
+    "  float t = uTime; float e = 0.004;",
+    "  vec3 p = pathAt(aU, t);",
+    "  vec3 tang = normalize(pathAt(aU + e, t) - pathAt(aU - e, t));",
+    "  vec3 toCam = cameraPosition - p;",
+    "  vec3 side = cross(tang, normalize(toCam));",
+    "  side = length(side) > 1e-4 ? normalize(side) : vec3(0.0, 1.0, 0.0);",
+    "  vU = aU; vV = aV;",
+    "  gl_Position = projectionMatrix * viewMatrix * vec4(p + side * aV * uThread * length(toCam), 1.0);",   // width grows with distance: about the same on screen everywhere
+    "}"
+  ].join("\n");
+  var threadFrag = [
+    "uniform float uTime; uniform float uSeed; uniform float uOpacity; uniform float uPulse; uniform float uScroll; uniform float uVel; uniform float uIntro;",
+    "varying float vU; varying float vV;",
+    "void main() {",
+    "  vec3 blue = vec3(0.10, 0.38, 1.00), cyan = vec3(0.12, 0.82, 1.00), indigo = vec3(0.34, 0.32, 1.00);",
+    "  float k = fract(vU * 1.1 - uTime * 0.035 + uSeed + uScroll * 0.7) * 3.0;",
+    "  vec3 col = k < 1.0 ? mix(blue, cyan, k) : (k < 2.0 ? mix(cyan, indigo, k - 1.0) : mix(indigo, blue, k - 2.0));",
+    "  float ends = smoothstep(" + (-U_EXT).toFixed(2) + ", " + (0.06 - U_EXT).toFixed(2) + ", vU) * smoothstep(" + (1 + U_EXT).toFixed(2) + ", " + (0.94 + U_EXT).toFixed(2) + ", vU);",
+    "  float d = fract(vU - uTime * uPulse - uSeed * 0.37); d = d > 0.5 ? d - 1.0 : d;",
+    "  float boost = 1.0 + (1.8 + uVel * 1.2) * exp(-d * d * 220.0);",
+    "  float v = abs(vV);",
+    "  float lw = max(0.16, fwidth(vV) * 1.2);",
+    "  float line = exp(-(v * v) / (lw * lw));",                                // thin white core
+    "  float glow = exp(-v * 3.2) * (1.0 - smoothstep(0.75, 1.0, v));",        // soft coloured halo that reaches zero at the strip edge
+    "  vec3 c = mix(col, vec3(1.0), line * 0.92) * boost;",
+    "  gl_FragColor = vec4(c, (line * 0.85 + glow * 0.45) * ends * uOpacity * uIntro);",
     "}"
   ].join("\n");
 
@@ -177,7 +215,7 @@
   ribbons.forEach(function (cfg, i) {
     var pos = [], us = [], vs = [], idx = [];
     for (var s = 0; s <= RIB_SEGS; s++) {
-      var u = s / RIB_SEGS;
+      var u = -U_EXT + (1 + 2 * U_EXT) * s / RIB_SEGS;
       pos.push(0, 0, 0, 0, 0, 0); us.push(u, u); vs.push(-1, 1);
       if (s > 0) { var a = (s - 1) * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
     }
@@ -196,7 +234,17 @@
     mesh.frustumCulled = false;
     mesh.renderOrder = 1 + i;
     scene.add(mesh);
-    disposables.push(geo, mat);
+    var threadMat = new THREE.ShaderMaterial({
+      uniforms: { uTime: uTime, uScroll: uScroll, uVel: uVel, uIntro: uIntro, uSeed: { value: cfg.seed }, uThread: { value: lite ? 0.0042 : 0.0034 }, uOpacity: { value: Math.min(cfg.opacity, 1.3) }, uPulse: { value: cfg.pulse } },
+      vertexShader: threadVert, fragmentShader: threadFrag,
+      transparent: true, depthWrite: false, depthTest: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending,
+      extensions: { derivatives: true }
+    });
+    var thread = new THREE.Mesh(geo, threadMat);       // same strip layout (aU along, aV across) as the ribbon
+    thread.frustumCulled = false;
+    thread.renderOrder = 10 + i;
+    scene.add(thread);
+    disposables.push(geo, mat, threadMat);
   });
 
   // ---------- size, input, loop ----------
