@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for looking. The project is small and still early: the command line, the local server and the windowed app (`app/`) work on a Mac; a Windows version exists but has only been run in CI (see [docs/PLAN.md](docs/PLAN.md), in Bulgarian).
+Thanks for looking. The project is small and still early: the command line, the local server and the windowed app (`app/`) work on a Mac; a Windows version exists but has only been run in CI (see [docs/PLAN.md](PLAN.md), in Bulgarian).
 
 ## Set up
 

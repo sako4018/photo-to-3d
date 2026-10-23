@@ -128,7 +128,7 @@ uv run ruff check .
 - [docs/phase-2-app.md](docs/phase-2-app.md): подробният план за приложението с прозорец (Фаза 2)
 - [docs/benchmarks.md](docs/benchmarks.md): измервания и открития
 - [docs/decisions/](docs/decisions/): кратки обяснения на ключовите решения
-- [CONTRIBUTING.md](CONTRIBUTING.md): как се допринася
+- [CONTRIBUTING.md](docs/CONTRIBUTING.md): как се допринася
 
 ## Трети страни
 
